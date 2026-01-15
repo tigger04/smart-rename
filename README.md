@@ -13,9 +13,25 @@ AI-powered file renaming tool that generates intelligent, descriptive filenames 
 
 ## Installation
 
+### Manual Installation
+
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/smart-rename.git
+git clone https://github.com/tigger04/smart-rename.git
+cd smart-rename
+
+# Test the installation
+make test
+
+# Install to system (requires sudo)
+sudo make install
+```
+
+### Development Installation
+
+```bash
+# Clone and setup for development
+git clone https://github.com/tigger04/smart-rename.git
 cd smart-rename
 
 # Make executable
@@ -27,16 +43,36 @@ ln -s "$(pwd)/smart-rename" /usr/local/bin/smart-rename
 
 ## Configuration
 
-The tool looks for configuration in the following order:
-1. Environment variables: `OPENAI_API_KEY`, `CLAUDE_API_KEY`, `OLLAMA_API_URL`
-2. Config file: `~/.config/smart-rename/config`
+The tool automatically detects available AI providers and uses the first available one. Configuration is loaded in this order:
 
-### Example config file
+1. **Environment variables** (highest priority)
+2. **Config file**: `~/.config/smart-rename/config`
+3. **Built-in defaults**
+
+### Quick Setup
+
+```bash
+# Create config directory
+mkdir -p ~/.config/smart-rename
+
+# Copy example config
+cp config.example ~/.config/smart-rename/config
+
+# Edit with your API keys
+nano ~/.config/smart-rename/config
+```
+
+### Configuration Options
 
 ```bash
 # ~/.config/smart-rename/config
-export OPENAI_API_KEY="your-openai-key"
-export CLAUDE_API_KEY="your-claude-key"
+
+# API Keys (set at least one)
+export OPENAI_API_KEY="sk-..."
+export CLAUDE_API_KEY="sk-ant-..."
+# export OLLAMA_API_URL="http://localhost:11434"  # Optional: remote Ollama
+
+# Default provider (optional - auto-detects if not set)
 export DEFAULT_AI="openai"  # or "claude" or "ollama"
 
 # Model configurations
@@ -56,6 +92,12 @@ declare -A abbreviations=(
   # Add your own custom abbreviations here
 )
 ```
+
+### Auto-Detection
+
+- If only one API key is provided, that provider becomes the default
+- If multiple keys are available, preference order: OpenAI → Claude → Ollama
+- If no API keys but Ollama is running locally, uses Ollama
 
 ## Usage
 
