@@ -23,6 +23,14 @@ load_config() {
    source_identifier=""
    output_mode=STDOUT
 
+   # Default abbreviations (medical facilities example)
+   declare -gA abbreviations=(
+      ["svph"]="St. Vincent's Private Hospital"
+      ["svuh"]="St. Vincent's University Hospital"
+      ["nrh"]="National Rehabilitation Hospital"
+      ["mater"]="Mater Misericordiae University Hospital"
+   )
+
    # Load from config file if exists
    if [[ -f "$config_file" ]]; then
       source "$config_file"

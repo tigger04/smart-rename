@@ -16,12 +16,19 @@ source "$script_dir/summarize-text-lib.sh"
 
 # Script-specific configuration
 cmd_base=$(basename "$0")
-pre_prompt="Generate a concise, descriptive filename for the following content (excluding extension). The filename should be in lowercase, use hyphens to separate words, and avoid special characters. It should accurately reflect the main topic or theme of the content. If the content is a receipt or invoice, it should be prefixed with YYYY-MM-DD-X.XX-smartname where X.XX is the total amount of the receipt or invoice in ${base_currency:-EUR}. Assume the currency is ${base_currency:-EUR} if not explicitly stated in the document. If the currency is anything other than ${base_currency:-EUR}, the prefix should be YYYY-MM-DD-CCC-X.XX-smartname where CCC is the ISO 4217 currency code. If the content is not a receipt or invoice, it should include the date at the end in YY-MM-DD format. If the date cannot be ascertained from the content, use the current month and year in YY-MM format. Utilize the following abbreviations:
-- svph = St. Vincent's Private Hospital
-- svuh = St. Vincent's University Hospital
-- nrh = National Rehabilitation Hospital
-- mater = Mater Misericordiae University Hospital
-Utilize any other common abbreviations as appropriate in this pattern."
+# Build abbreviations list for prompt
+abbrev_list=""
+if [[ ${#abbreviations[@]} -gt 0 ]]; then
+   for key in "${!abbreviations[@]}"; do
+      abbrev_list+="- $key = ${abbreviations[$key]}"$'\n'
+   done
+   abbrev_text="Utilize the following abbreviations:"$'\n'"$abbrev_list"
+   abbrev_text+="Utilize any other common abbreviations as appropriate in this pattern."
+else
+   abbrev_text=""
+fi
+
+pre_prompt="Generate a concise, descriptive filename for the following content (excluding extension). The filename should be in lowercase, use hyphens to separate words, and avoid special characters. It should accurately reflect the main topic or theme of the content. If the content is a receipt or invoice, it should be prefixed with YYYY-MM-DD-X.XX-smartname where X.XX is the total amount of the receipt or invoice in ${base_currency:-EUR}. Assume the currency is ${base_currency:-EUR} if not explicitly stated in the document. If the currency is anything other than ${base_currency:-EUR}, the prefix should be YYYY-MM-DD-CCC-X.XX-smartname where CCC is the ISO 4217 currency code. If the content is not a receipt or invoice, it should include the date at the end in YY-MM-DD format. If the date cannot be ascertained from the content, use the current month and year in YY-MM format. $abbrev_text"
 
 # Flag for skipping confirmation
 skip_confirmation=false

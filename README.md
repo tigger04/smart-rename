@@ -46,6 +46,15 @@ ollama_model="mistral"
 
 # Base currency for receipts (default: EUR)
 base_currency="EUR"  # Can be USD, GBP, etc.
+
+# Custom abbreviations (these are defaults, customize as needed)
+declare -A abbreviations=(
+  ["svph"]="St. Vincent's Private Hospital"
+  ["svuh"]="St. Vincent's University Hospital"
+  ["nrh"]="National Rehabilitation Hospital"
+  ["mater"]="Mater Misericordiae University Hospital"
+  # Add your own custom abbreviations here
+)
 ```
 
 ## Usage
@@ -94,12 +103,14 @@ smart-rename --openai receipt.jpg
 - Amount in base currency (configurable, default EUR)
 - Other currencies: `YYYY-MM-DD-CUR-amount-description.ext`
 
-### Medical Abbreviations
-The tool recognizes common medical facility abbreviations:
+### Abbreviations (Configurable)
+The tool comes with default medical facility abbreviations which can be customized in the config file:
 - svph = St. Vincent's Private Hospital
 - svuh = St. Vincent's University Hospital
 - nrh = National Rehabilitation Hospital
 - mater = Mater Misericordiae University Hospital
+
+Add your own abbreviations in `~/.config/smart-rename/config`
 
 ## Examples
 
