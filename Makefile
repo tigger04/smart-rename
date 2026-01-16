@@ -23,6 +23,8 @@ test:
 	@./test/test_config.sh
 	@echo "Running integration tests..."
 	@./test/test_integration.sh
+	@echo "Running YAML configuration tests..."
+	@./test/test_yaml_simple.sh
 	@echo "Running installation tests..."
 	@./test/test_install.sh
 	@echo "All tests passed!"

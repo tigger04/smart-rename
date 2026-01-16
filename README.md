@@ -46,15 +46,48 @@ brew install smart-rename
 The tool automatically detects available AI providers and uses the first available one. Configuration is loaded in this order:
 
 1. **Environment variables** (highest priority)
-2. **Config file**: `~/.config/smart-rename/config`
-3. **Built-in defaults**
+2. **YAML config file**: `~/.config/smart-rename/config.yaml` (recommended)
+3. **Shell config file**: `~/.config/smart-rename/config` (backwards compatibility)
+4. **Built-in defaults**
 
-### Quick Setup
+### Quick Setup (YAML - Recommended)
 
 ```bash
 # Create config directory
 mkdir -p ~/.config/smart-rename
 
+# Copy example YAML config
+cp config.example.yaml ~/.config/smart-rename/config.yaml
+
+# Edit with your API keys and customize prompts
+nano ~/.config/smart-rename/config.yaml
+```
+
+### YAML Configuration Features
+
+- **Custom prompts**: Configure the AI prompt with placeholders
+- **API settings**: All providers and models in one place
+- **Abbreviations**: Clean YAML format for custom abbreviations
+- **Multi-line support**: Better for complex prompts
+
+Example YAML structure:
+```yaml
+prompts:
+  rename: |
+    Your custom prompt with {{BASE_CURRENCY}} and {{ABBREVIATIONS}} placeholders
+
+currency:
+  base: "USD"
+
+abbreviations:
+  myorg: "My Organization"
+```
+
+### Legacy Shell Configuration
+
+For backwards compatibility, you can still use shell config:
+
+```bash
 # Copy example config
 cp config.example ~/.config/smart-rename/config
 

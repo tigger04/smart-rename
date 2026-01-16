@@ -16,19 +16,39 @@ source "$script_dir/summarize-text-lib.sh"
 
 # Script-specific configuration
 cmd_base=$(basename "$0")
-# Build abbreviations list for prompt
-abbrev_list=""
-if [[ ${#abbreviations[@]} -gt 0 ]]; then
-   for key in "${!abbreviations[@]}"; do
-      abbrev_list+="- $key = ${abbreviations[$key]}"$'\n'
-   done
-   abbrev_text="Utilize the following abbreviations:"$'\n'"$abbrev_list"
-   abbrev_text+="Utilize any other common abbreviations as appropriate in this pattern."
-else
-   abbrev_text=""
-fi
 
-pre_prompt="Generate a concise, descriptive filename for the following content (excluding extension). The filename should be in lowercase, use hyphens to separate words, and avoid special characters. It should accurately reflect the main topic or theme of the content. If the content is a receipt or invoice, it should be prefixed with YYYY-MM-DD-X.XX-smartname where X.XX is the total amount of the receipt or invoice in ${base_currency:-EUR}. Assume the currency is ${base_currency:-EUR} if not explicitly stated in the document. If the currency is anything other than ${base_currency:-EUR}, the prefix should be YYYY-MM-DD-CCC-X.XX-smartname where CCC is the ISO 4217 currency code. If the content is not a receipt or invoice, it should include the date at the end in YY-MM-DD format. If the date cannot be ascertained from the content, use the current month and year in YY-MM format. $abbrev_text"
+# Function to build prompt with placeholder substitution
+build_prompt() {
+   local prompt_template=""
+
+   # Use YAML prompt if available, otherwise use default
+   if [[ -n "${yaml_prompt_template:-}" ]]; then
+      prompt_template="$yaml_prompt_template"
+   else
+      # Default prompt (fallback)
+      prompt_template="Generate a concise, descriptive filename for the following content (excluding extension). The filename should be in lowercase, use hyphens to separate words, and avoid special characters. It should accurately reflect the main topic or theme of the content. If the content is a receipt or invoice, it should be prefixed with YYYY-MM-DD-X.XX-smartname where X.XX is the total amount of the receipt or invoice in {{BASE_CURRENCY}}. Assume the currency is {{BASE_CURRENCY}} if not explicitly stated in the document. If the currency is anything other than {{BASE_CURRENCY}}, the prefix should be YYYY-MM-DD-CCC-X.XX-smartname where CCC is the ISO 4217 currency code. If the content is not a receipt or invoice, it should include the date at the end in YY-MM-DD format. If the date cannot be ascertained from the content, use the current month and year in YY-MM format. {{ABBREVIATIONS}}"
+   fi
+
+   # Build abbreviations text
+   local abbrev_text=""
+   if [[ ${#abbreviations[@]} -gt 0 ]]; then
+      local abbrev_list=""
+      for key in "${!abbreviations[@]}"; do
+         abbrev_list+="- $key = ${abbreviations[$key]}"$'\n'
+      done
+      abbrev_text="Utilize the following abbreviations:"$'\n'"$abbrev_list"
+      abbrev_text+="Utilize any other common abbreviations as appropriate in this pattern."
+   fi
+
+   # Substitute placeholders
+   prompt_template="${prompt_template//\{\{BASE_CURRENCY\}\}/${base_currency:-EUR}}"
+   prompt_template="${prompt_template//\{\{ABBREVIATIONS\}\}/$abbrev_text}"
+
+   echo "$prompt_template"
+}
+
+# Build the prompt
+pre_prompt=$(build_prompt)
 
 # Flag for skipping confirmation
 skip_confirmation=false

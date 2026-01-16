@@ -9,9 +9,57 @@ if [ "${BASH_VERSINFO[0]}" -lt 3 ] || ([ "${BASH_VERSINFO[0]}" -eq 3 ] && [ "${B
    exit 1
 fi
 
+# Simple YAML parser for basic key: value pairs
+parse_yaml() {
+   local yaml_file="$1"
+   local prefix="$2"
+   local s='[[:space:]]*' w='[a-zA-Z0-9_]*' fs=$(echo @|tr @ '\034')
+
+   sed -ne "s|^\($s\):|\1|" \
+       -e "s|^\($s\)\($w\)$s:$s[\"']\(.*\)[\"']$s\$|\1$fs\2$fs\3|p" \
+       -e "s|^\($s\)\($w\)$s:$s\(.*\)$s\$|\1$fs\2$fs\3|p" "$yaml_file" |
+   awk -F$fs '{
+      indent = length($1)/2;
+      vname[indent] = $2;
+      for (i in vname) {if (i > indent) {delete vname[i]}}
+      if (length($3) > 0) {
+         vn=""; for (i=0; i<indent; i++) {vn=(vn)(vname[i])("_")}
+         printf("%s%s%s=\"%s\"\n", "'$prefix'",vn, $2, $3);
+      }
+   }'
+}
+
+# Load YAML config into variables
+load_yaml_config() {
+   local yaml_file="$1"
+   if [[ -f "$yaml_file" ]]; then
+      # Parse YAML and evaluate the output
+      eval $(parse_yaml "$yaml_file" "yaml_")
+
+      # Map YAML config to our variables
+      [[ -n "${yaml_api_openai_key:-}" ]] && export OPENAI_API_KEY="$yaml_api_openai_key"
+      [[ -n "${yaml_api_claude_key:-}" ]] && export CLAUDE_API_KEY="$yaml_api_claude_key"
+      [[ -n "${yaml_api_ollama_url:-}" ]] && export OLLAMA_API_URL="$yaml_api_ollama_url"
+      [[ -n "${yaml_api_openai_model:-}" ]] && openai_model="$yaml_api_openai_model"
+      [[ -n "${yaml_api_claude_model:-}" ]] && claude_model="$yaml_api_claude_model"
+      [[ -n "${yaml_api_ollama_model:-}" ]] && ollama_model="$yaml_api_ollama_model"
+      [[ -n "${yaml_default_provider:-}" ]] && active_function="$yaml_default_provider"
+      [[ -n "${yaml_currency_base:-}" ]] && base_currency="$yaml_currency_base"
+      [[ -n "${yaml_prompts_rename:-}" ]] && yaml_prompt_template="$yaml_prompts_rename"
+
+      # Load abbreviations from YAML
+      for var in $(compgen -v yaml_abbreviations_); do
+         key="${var#yaml_abbreviations_}"
+         abbreviations["$key"]="${!var}"
+      done
+   fi
+}
+
 # Load configuration
 load_config() {
-   local config_file="$HOME/.config/smart-rename/config"
+   local config_dir="$HOME/.config/smart-rename"
+   local config_file="$config_dir/config"
+   local yaml_config_file="$config_dir/config.yaml"
 
    # Set defaults
    active_function=""
@@ -22,6 +70,7 @@ load_config() {
    source=STDIN
    source_identifier=""
    output_mode=STDOUT
+   yaml_prompt_template=""
 
    # Default abbreviations (medical facilities example)
    declare -gA abbreviations=(
@@ -31,7 +80,20 @@ load_config() {
       ["mater"]="Mater Misericordiae University Hospital"
    )
 
-   # Load from config file if exists
+   # Create config directory if it doesn't exist
+   if [[ ! -d "$config_dir" ]]; then
+      mkdir -p "$config_dir"
+   fi
+
+   # Create default YAML config if it doesn't exist
+   if [[ ! -f "$yaml_config_file" ]] && [[ -f "$(dirname "${BASH_SOURCE[0]}")/config.example.yaml" ]]; then
+      cp "$(dirname "${BASH_SOURCE[0]}")/config.example.yaml" "$yaml_config_file"
+   fi
+
+   # Load YAML config first
+   load_yaml_config "$yaml_config_file"
+
+   # Load from shell config file if exists (for backwards compatibility)
    if [[ -f "$config_file" ]]; then
       source "$config_file"
    fi

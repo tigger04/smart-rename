@@ -1,0 +1,33 @@
+# smart-rename YAML configuration file
+# Copy this to ~/.config/smart-rename/config.yaml and edit as needed
+
+# API Configuration
+api:
+  openai:
+    key: ""  # Set your OpenAI API key
+    model: "gpt-4o-mini"
+  claude:
+    key: ""  # Set your Claude API key
+    model: "claude-3-5-sonnet-20241022"
+  ollama:
+    url: "http://localhost:11434"
+    model: "mistral"
+
+# Default provider (auto-detected if not set)
+default_provider: ""
+
+# Prompt configuration - uses placeholders for dynamic content
+prompts:
+  rename: |
+    Generate a concise, descriptive filename for the following content (excluding extension). The filename should be in lowercase, use hyphens to separate words, and avoid special characters. It should accurately reflect the main topic or theme of the content. If the content is a receipt or invoice, it should be prefixed with YYYY-MM-DD-X.XX-smartname where X.XX is the total amount of the receipt or invoice in {{BASE_CURRENCY}}. Assume the currency is {{BASE_CURRENCY}} if not explicitly stated in the document. If the currency is anything other than {{BASE_CURRENCY}}, the prefix should be YYYY-MM-DD-CCC-X.XX-smartname where CCC is the ISO 4217 currency code. If the content is not a receipt or invoice, it should include the date at the end in YY-MM-DD format. If the date cannot be ascertained from the content, use the current month and year in YY-MM format. {{ABBREVIATIONS}}
+
+# Currency settings
+currency:
+  base: "EUR"
+
+# Custom abbreviations
+abbreviations:
+  svph: "St. Vincent's Private Hospital"
+  svuh: "St. Vincent's University Hospital"
+  nrh: "National Rehabilitation Hospital"
+  mater: "Mater Misericordiae University Hospital"
