@@ -33,7 +33,6 @@ AI-powered file renaming tool that generates intelligent, descriptive filenames 
 - [ ] OpenDocument formats (ODT, ODS, ODP)
 - [ ] Email files (EML, MSG)
 - [ ] Video files (MP4, MOV) - extract first frame
-- [ ] Audio files (MP3, WAV) - via subtitle files (SRT, VTT)
 
 ## Quick Start
 
