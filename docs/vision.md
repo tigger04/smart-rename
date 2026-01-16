@@ -4,9 +4,9 @@
 Smart-rename is an AI-powered tool that brings intelligence to file organization by generating meaningful, descriptive filenames based on actual file content rather than arbitrary naming conventions.
 
 ## Core Philosophy
-Files should be named based on what they contain, not when they were created or who created them. A filename should tell you everything you need to know about a file without opening it.
+Files should be named based on what they contain, not when they were created or who created them. A filename should give you a good indication of what is in the file without needing to open it.
 
-## Problem We Solve
+## Problem it solves
 - Thousands of files with meaningless names like "IMG_4523.jpg" or "Document(1).pdf"
 - Time wasted opening files to find what you need
 - Inconsistent naming conventions across teams and projects
@@ -16,7 +16,7 @@ Files should be named based on what they contain, not when they were created or 
 ## Design Principles
 
 ### 1. Content-First Naming
-The filename should reflect the actual content, not metadata. We analyze the file's content using AI to understand what it represents.
+The filename should reflect the actual content, not metadata. it analyze the file's content using AI to understand what it represents.
 
 ### 2. Specialized Format Recognition
 Different document types deserve different naming patterns:
@@ -34,23 +34,17 @@ Different document types deserve different naming patterns:
 - Configurable abbreviations for common entities
 - Currency handling for international users
 
-## Future Direction
+## Roadmap
 
-### Near Term
-- Integration with cloud storage providers
-- Support for more document types (presentations, spreadsheets)
-- Improved OCR for scanned documents
-- Folder organization suggestions
-
-### Long Term
-- Learning from user corrections to improve suggestions
-- Team-shared naming conventions
-- Integration with document management systems
-- Smart categorization and tagging beyond just naming
+[ ] Integration with cloud storage providers
+[ ] Support for more document types (presentations, spreadsheets)
+[ ] Improved OCR for scanned documents
+[ ] Folder organization suggestions
+[ ] Smart categorization and tagging beyond just naming - probably with `tmsu tag` though open to suggestions
 
 ## Success Metrics
-- Files can be found by name alone without searching content
-- Consistent naming across an entire document library
+- A file can be identified by glancing filesname without needing to open and examine it
+- Consistent naming across document libraries
 - Reduced time spent organizing files
 - Financial documents properly formatted for accounting software
 
