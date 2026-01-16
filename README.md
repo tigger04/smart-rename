@@ -11,6 +11,26 @@ AI-powered file renaming tool that generates intelligent, descriptive filenames 
 - Multiple AI provider support (OpenAI, Claude, Ollama)
 - Interactive or automatic rename mode
 
+## Supported File Types
+
+### Currently Supported
+- [x] PDF documents
+- [x] Images (JPG, PNG, JPEG)
+- [x] Text files (TXT)
+- [x] Markdown files (MD)
+
+### On the Roadmap
+- [ ] Microsoft Word documents (DOCX)
+- [ ] Microsoft Excel spreadsheets (XLSX)
+- [ ] Microsoft PowerPoint presentations (PPTX)
+- [ ] HTML files
+- [ ] CSV files
+- [ ] RTF documents
+- [ ] OpenDocument formats (ODT, ODS, ODP)
+- [ ] Email files (EML, MSG)
+- [ ] Video files (MP4, MOV) - extract first frame
+- [ ] Audio transcripts (MP3, WAV) - if transcribed
+
 ## Quick Start
 
 ```bash
