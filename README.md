@@ -18,18 +18,22 @@ AI-powered file renaming tool that generates intelligent, descriptive filenames 
 - [x] Images (JPG, PNG, JPEG)
 - [x] Text files (TXT)
 - [x] Markdown files (MD)
+- [x] HTML files
+- [x] CSV files
+- [x] Subtitle files (SRT, VTT, SUB)
+- [x] JSON files
+- [x] XML files
+- [x] Source code files (any plaintext)
 
 ### On the Roadmap
 - [ ] Microsoft Word documents (DOCX)
-- [ ] Microsoft Excel spreadsheets (XLSX)
+- [ ] Microsoft Excel spreadsheets (XLSX) - with data analysis
 - [ ] Microsoft PowerPoint presentations (PPTX)
-- [ ] HTML files
-- [ ] CSV files
 - [ ] RTF documents
 - [ ] OpenDocument formats (ODT, ODS, ODP)
 - [ ] Email files (EML, MSG)
 - [ ] Video files (MP4, MOV) - extract first frame
-- [ ] Audio transcripts (MP3, WAV) - if transcribed
+- [ ] Audio files (MP3, WAV) - with transcription
 
 ## Quick Start
 
