@@ -1,20 +1,21 @@
 #!/usr/bin/make -f
 # ABOUTME: Build configuration for smart-rename project
-# ABOUTME: Provides test targets and installation helpers
+# ABOUTME: Provides test targets and development installation
 
 .PHONY: test install uninstall clean help
-
-# Detect Homebrew prefix if available, otherwise use /usr/local
-PREFIX ?= $(shell if command -v brew >/dev/null 2>&1; then brew --prefix; else echo /usr/local; fi)
 
 # Default target
 help:
 	@echo "Available targets:"
 	@echo "  test      - Run all tests"
-	@echo "  install   - Install to $(PREFIX)/bin"
-	@echo "  uninstall - Remove installed files"
+	@echo "  install   - Development install to /usr/local/bin (requires sudo)"
+	@echo "  uninstall - Remove installed files (requires sudo)"
 	@echo "  clean     - Clean up test artifacts"
 	@echo "  help      - Show this help"
+	@echo ""
+	@echo "For production installation, use Homebrew:"
+	@echo "  brew tap tigger04/tap"
+	@echo "  brew install smart-rename"
 
 # Run tests
 test:
@@ -26,23 +27,22 @@ test:
 	@./test/test_install.sh
 	@echo "All tests passed!"
 
-# Install to system
+# Development install (requires sudo)
 install: smart-rename
-	@echo "Installing to $(PREFIX)..."
-	@install -d $(PREFIX)/bin
-	@install -d $(PREFIX)/share/smart-rename
-	@install -m 755 smart-rename $(PREFIX)/bin/
-	@install -m 644 summarize-text-lib.sh $(PREFIX)/share/smart-rename/
-	@echo "Installation complete: $(PREFIX)/bin/smart-rename"
-	@if ! echo "$$PATH" | grep -q "$(PREFIX)/bin"; then \
-		echo "WARNING: $(PREFIX)/bin is not in your PATH"; \
-	fi
+	@echo "Installing to /usr/local/bin (requires sudo)..."
+	@echo "Creating directories..."
+	@sudo install -d /usr/local/bin
+	@sudo install -d /usr/local/share/smart-rename
+	@echo "Installing files..."
+	@sudo install -m 755 smart-rename /usr/local/bin/
+	@sudo install -m 644 summarize-text-lib.sh /usr/local/share/smart-rename/
+	@echo "Installation complete: /usr/local/bin/smart-rename"
 
-# Uninstall from system
+# Uninstall (requires sudo)
 uninstall:
-	@echo "Uninstalling from $(PREFIX)..."
-	@rm -f $(PREFIX)/bin/smart-rename
-	@rm -rf $(PREFIX)/share/smart-rename
+	@echo "Uninstalling from /usr/local (requires sudo)..."
+	@sudo rm -f /usr/local/bin/smart-rename
+	@sudo rm -rf /usr/local/share/smart-rename
 	@echo "Uninstall complete"
 
 # Build the executable (ensures it exists and is executable)

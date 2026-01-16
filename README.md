@@ -13,42 +13,30 @@ AI-powered file renaming tool that generates intelligent, descriptive filenames 
 
 ## Installation
 
-### Homebrew Installation (Recommended)
+### Homebrew (Recommended)
+
+```bash
+brew tap tigger04/tap
+brew install smart-rename
+```
+
+### Development Installation
+
+For development or if you prefer manual installation:
 
 ```bash
 # Clone the repository
 git clone https://github.com/tigger04/smart-rename.git
 cd smart-rename
 
-# Test the installation
+# Run tests
 make test
 
-# Install (auto-detects Homebrew, no sudo needed)
-make install
-```
+# Install to /usr/local/bin (requires sudo)
+sudo make install
 
-### Manual Installation
-
-```bash
-# Install to custom location
-make install PREFIX=~/.local
-
-# Or system-wide (requires sudo)
-sudo make install PREFIX=/usr/local
-```
-
-### Development Installation
-
-```bash
-# Clone and setup for development
-git clone https://github.com/tigger04/smart-rename.git
-cd smart-rename
-
-# Make executable
-chmod +x smart-rename
-
-# Optional: Link to PATH
-ln -s "$(pwd)/smart-rename" /usr/local/bin/smart-rename
+# Uninstall
+sudo make uninstall
 ```
 
 ## Configuration

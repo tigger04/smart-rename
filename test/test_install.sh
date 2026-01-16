@@ -57,67 +57,31 @@ else
     test_fail "No install target found in Makefile"
 fi
 
-# Test 2: Check if we can detect Homebrew prefix
-test_start "Detecting Homebrew installation"
-if command -v brew >/dev/null 2>&1; then
-    BREW_PREFIX=$(brew --prefix)
-    if [ -d "$BREW_PREFIX" ]; then
-        test_pass
-        echo "  Found Homebrew at: $BREW_PREFIX"
-    else
-        test_fail "Homebrew command exists but prefix not found"
-    fi
-else
-    test_fail "Homebrew not installed"
-fi
-
-# Test 3: Test installation to custom PREFIX (simulating user install)
-test_start "Installation to custom PREFIX"
-# Ensure clean state before installation
-cleanup_installation "$TEST_PREFIX"
-mkdir -p "$TEST_PREFIX/bin"
-mkdir -p "$TEST_PREFIX/share"
-
-if make install PREFIX="$TEST_PREFIX" >/dev/null 2>&1; then
-    # Check if files were installed
-    if [ -f "$TEST_PREFIX/bin/smart-rename" ] && [ -f "$TEST_PREFIX/share/smart-rename/summarize-text-lib.sh" ]; then
-        test_pass
-    else
-        test_fail "Files not installed to expected locations"
-    fi
-else
-    test_fail "make install failed with custom PREFIX"
-fi
-
-# Test 4: Verify installed binary is executable
-test_start "Installed binary is executable"
-if [ -x "$TEST_PREFIX/bin/smart-rename" ]; then
+# Test 2: Check Makefile defaults to /usr/local
+test_start "Makefile uses /usr/local for development install"
+if grep -q "/usr/local/bin" Makefile; then
     test_pass
 else
-    test_fail "Binary not executable"
+    test_fail "Makefile should use /usr/local/bin for development install"
 fi
 
-# Test 5: Test Homebrew-style installation (if Homebrew is available)
-if command -v brew >/dev/null 2>&1; then
-    test_start "Homebrew-compatible installation"
-    BREW_TEST_DIR="$TEST_DIR/homebrew"
-    # Ensure clean state before installation
-    cleanup_installation "$BREW_TEST_DIR"
-    mkdir -p "$BREW_TEST_DIR/bin"
-    mkdir -p "$BREW_TEST_DIR/share"
-
-    if make install PREFIX="$BREW_TEST_DIR" >/dev/null 2>&1; then
-        if [ -f "$BREW_TEST_DIR/bin/smart-rename" ]; then
-            test_pass
-        else
-            test_fail "Failed to install to Homebrew-style directory"
-        fi
-    else
-        test_fail "make install failed for Homebrew-style PREFIX"
-    fi
+# Test 3: Check install target requires sudo
+test_start "Install target mentions sudo requirement"
+if grep -q "requires sudo" Makefile; then
+    test_pass
+else
+    test_fail "Install target should mention sudo requirement"
 fi
 
-# Test 6: Verify uninstall target exists
+# Test 4: Check source file is executable
+test_start "Source file is executable"
+if [ -x "smart-rename" ]; then
+    test_pass
+else
+    test_fail "smart-rename should be executable"
+fi
+
+# Test 5: Verify uninstall target exists
 test_start "Makefile has uninstall target"
 if grep -q "^uninstall:" Makefile; then
     test_pass
@@ -125,28 +89,13 @@ else
     test_fail "No uninstall target found in Makefile"
 fi
 
-# Test 7: Test uninstall functionality
-test_start "Uninstall removes installed files"
-UNINSTALL_TEST_DIR="$TEST_DIR/uninstall_test"
-cleanup_installation "$UNINSTALL_TEST_DIR"
-mkdir -p "$UNINSTALL_TEST_DIR/bin"
-mkdir -p "$UNINSTALL_TEST_DIR/share"
-
-# First install
-if make install PREFIX="$UNINSTALL_TEST_DIR" >/dev/null 2>&1; then
-    # Then uninstall
-    if make uninstall PREFIX="$UNINSTALL_TEST_DIR" >/dev/null 2>&1; then
-        # Check files are removed
-        if [ ! -f "$UNINSTALL_TEST_DIR/bin/smart-rename" ] && [ ! -d "$UNINSTALL_TEST_DIR/share/smart-rename" ]; then
-            test_pass
-        else
-            test_fail "Files not properly removed after uninstall"
-        fi
-    else
-        test_fail "make uninstall failed"
-    fi
+# Test 6: Check help mentions Homebrew
+test_start "Help target mentions Homebrew installation"
+HELP_OUTPUT=$(make help 2>&1)
+if echo "$HELP_OUTPUT" | grep -q "brew tap tigger04/tap"; then
+    test_pass
 else
-    test_fail "Initial installation for uninstall test failed"
+    test_fail "Help should mention Homebrew tap installation"
 fi
 
 # Summary
