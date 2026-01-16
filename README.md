@@ -13,7 +13,7 @@ AI-powered file renaming tool that generates intelligent, descriptive filenames 
 
 ## Installation
 
-### Manual Installation
+### Homebrew Installation (Recommended)
 
 ```bash
 # Clone the repository
@@ -23,8 +23,18 @@ cd smart-rename
 # Test the installation
 make test
 
-# Install to system (requires sudo)
-sudo make install
+# Install (auto-detects Homebrew, no sudo needed)
+make install
+```
+
+### Manual Installation
+
+```bash
+# Install to custom location
+make install PREFIX=~/.local
+
+# Or system-wide (requires sudo)
+sudo make install PREFIX=/usr/local
 ```
 
 ### Development Installation
