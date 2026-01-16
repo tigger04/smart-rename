@@ -11,32 +11,11 @@ AI-powered file renaming tool that generates intelligent, descriptive filenames 
 - Multiple AI provider support (OpenAI, Claude, Ollama)
 - Interactive or automatic rename mode
 
-## Installation
-
-### Homebrew (Recommended)
+## Quick Start
 
 ```bash
 brew tap tigger04/tap
 brew install smart-rename
-```
-
-### Development Installation
-
-For development or if you prefer manual installation:
-
-```bash
-# Clone the repository
-git clone https://github.com/tigger04/smart-rename.git
-cd smart-rename
-
-# Run tests
-make test
-
-# Install to /usr/local/bin (requires sudo)
-sudo make install
-
-# Uninstall
-sudo make uninstall
 ```
 
 ## Configuration
@@ -164,6 +143,25 @@ smart-rename -r -y ".*\.(pdf|jpg|png)$"
 # Use custom base currency (USD instead of EUR)
 echo 'base_currency="USD"' >> ~/.config/smart-rename/config
 smart-rename receipt.pdf
+```
+
+## Development Installation
+
+For development or manual installation:
+
+```bash
+# Clone the repository
+git clone https://github.com/tigger04/smart-rename.git
+cd smart-rename
+
+# Run tests
+make test
+
+# Install to /usr/local/bin (requires sudo)
+sudo make install
+
+# Uninstall
+sudo make uninstall
 ```
 
 ## License
