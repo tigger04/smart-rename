@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-VERSION="4.3.0"
+VERSION="5.0.0"
 SCRIPT_NAME="smart-rename"
 CONFIG_DIR="$HOME/.config/smart-rename"
 CONFIG_FILE="$CONFIG_DIR/config.yaml"
@@ -154,8 +154,51 @@ process_file() {
     # Try to get AI response
     local new_name=""
 
-    # Try Ollama if available
-    if command -v ollama >/dev/null 2>&1; then
+    # Try OpenAI first if we have a key
+    if [[ -n "${OPENAI_API_KEY:-}" ]]; then
+        echo "Using OpenAI ($OPENAI_MODEL)..." >&2
+        local json_payload=$(jq -n --arg p "$prompt" --arg m "$OPENAI_MODEL" '{
+            model: $m,
+            messages: [{role: "user", content: $p}],
+            max_tokens: 100
+        }')
+
+        new_name=$(curl -s --max-time "$API_TIMEOUT" https://api.openai.com/v1/chat/completions \
+            -H "Authorization: Bearer $OPENAI_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$json_payload" | jq -r '.choices[0].message.content // empty' | head -1) || true
+
+        if [[ -n "$new_name" ]]; then
+            echo "✓ Got response from OpenAI" >&2
+        else
+            echo "✗ OpenAI failed" >&2
+        fi
+    fi
+
+    # Try Claude if we have a key and no response yet
+    if [[ -z "$new_name" && -n "${CLAUDE_API_KEY:-}" ]]; then
+        echo "Using Claude ($CLAUDE_MODEL)..." >&2
+        local json_payload=$(jq -n --arg p "$prompt" --arg m "$CLAUDE_MODEL" '{
+            model: $m,
+            messages: [{role: "user", content: $p}],
+            max_tokens: 100
+        }')
+
+        new_name=$(curl -s --max-time "$API_TIMEOUT" https://api.anthropic.com/v1/messages \
+            -H "x-api-key: $CLAUDE_API_KEY" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "content-type: application/json" \
+            -d "$json_payload" | jq -r '.content[0].text // empty' | head -1) || true
+
+        if [[ -n "$new_name" ]]; then
+            echo "✓ Got response from Claude" >&2
+        else
+            echo "✗ Claude failed" >&2
+        fi
+    fi
+
+    # Try Ollama as fallback if no API keys or if APIs failed
+    if [[ -z "$new_name" ]] && command -v ollama >/dev/null 2>&1; then
         # Check if Ollama service is running
         if ! curl -s http://localhost:11434/api/version >/dev/null 2>&1; then
             echo "⚠ Ollama service not running. Start with: brew services start ollama" >&2
@@ -166,9 +209,15 @@ process_file() {
             local temp_prompt=$(mktemp)
             echo "$prompt" > "$temp_prompt"
 
-            # Use Ollama CLI with temp file input
+            # Use Ollama CLI with temp file input, clean up ANSI codes
             local ollama_response
-            ollama_response=$(timeout "$API_TIMEOUT" ollama run "$OLLAMA_MODEL" < "$temp_prompt" 2>&1 | tr -d '\r' | sed '/^$/d' | grep -v '^\[' | head -1) || true
+            ollama_response=$(timeout "$API_TIMEOUT" ollama run "$OLLAMA_MODEL" < "$temp_prompt" 2>&1 | \
+                sed 's/\x1b\[[0-9;]*[mGKHJ]//g' | \
+                sed 's/\[?[0-9]*[hl]//g' | \
+                tr -d '\r' | \
+                sed '/^$/d' | \
+                grep -v '^\[' | \
+                head -1) || true
 
             rm -f "$temp_prompt"
 
@@ -186,36 +235,6 @@ process_file() {
         fi
     fi
 
-    # Try OpenAI if we have a key and no response yet
-    if [[ -z "$new_name" && -n "${OPENAI_API_KEY:-}" ]]; then
-        echo "Using OpenAI ($OPENAI_MODEL)..." >&2
-        local json_payload=$(jq -n --arg p "$prompt" --arg m "$OPENAI_MODEL" '{
-            model: $m,
-            messages: [{role: "user", content: $p}],
-            max_tokens: 100
-        }')
-
-        new_name=$(curl -s --max-time "$API_TIMEOUT" https://api.openai.com/v1/chat/completions \
-            -H "Authorization: Bearer $OPENAI_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "$json_payload" | jq -r '.choices[0].message.content // empty' | head -1) || true
-    fi
-
-    # Try Claude if we have a key and no response yet
-    if [[ -z "$new_name" && -n "${CLAUDE_API_KEY:-}" ]]; then
-        echo "Using Claude ($CLAUDE_MODEL)..." >&2
-        local json_payload=$(jq -n --arg p "$prompt" --arg m "$CLAUDE_MODEL" '{
-            model: $m,
-            messages: [{role: "user", content: $p}],
-            max_tokens: 100
-        }')
-
-        new_name=$(curl -s --max-time "$API_TIMEOUT" https://api.anthropic.com/v1/messages \
-            -H "x-api-key: $CLAUDE_API_KEY" \
-            -H "anthropic-version: 2023-06-01" \
-            -H "content-type: application/json" \
-            -d "$json_payload" | jq -r '.content[0].text // empty' | head -1) || true
-    fi
 
     if [[ -z "$new_name" ]]; then
         echo "Error: Could not generate filename (no AI service available)" >&2
