@@ -89,6 +89,15 @@ else
     test_pass
 fi
 
+# Test 6: Caveats mention automatic config creation
+test_start "Caveats mention automatic YAML config creation"
+FORMULA_INFO=$(brew info tigger04/tap/smart-rename 2>&1)
+if echo "$FORMULA_INFO" | grep -q "default configuration file has been created"; then
+    test_pass
+else
+    test_fail "Caveats should mention automatic config creation"
+fi
+
 # Cleanup
 cleanup_tap
 
