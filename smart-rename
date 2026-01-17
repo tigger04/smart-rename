@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-VERSION="4.2.0"
+VERSION="4.3.0"
 SCRIPT_NAME="smart-rename"
 CONFIG_DIR="$HOME/.config/smart-rename"
 CONFIG_FILE="$CONFIG_DIR/config.yaml"
@@ -161,18 +161,26 @@ process_file() {
             echo "⚠ Ollama service not running. Start with: brew services start ollama" >&2
         else
             echo "Trying Ollama ($OLLAMA_MODEL)..." >&2
-            local ollama_response
-            ollama_response=$(echo "$prompt" | timeout "$API_TIMEOUT" ollama run "$OLLAMA_MODEL" 2>&1 | head -1) || true
 
-            if [[ -n "$ollama_response" ]] && [[ ! "$ollama_response" =~ "Error" ]] && [[ ! "$ollama_response" =~ "pulling" ]]; then
+            # Create temp file for prompt to avoid shell escaping issues
+            local temp_prompt=$(mktemp)
+            echo "$prompt" > "$temp_prompt"
+
+            # Use Ollama CLI with temp file input
+            local ollama_response
+            ollama_response=$(timeout "$API_TIMEOUT" ollama run "$OLLAMA_MODEL" < "$temp_prompt" 2>&1 | tr -d '\r' | sed '/^$/d' | grep -v '^\[' | head -1) || true
+
+            rm -f "$temp_prompt"
+
+            if [[ -n "$ollama_response" ]] && [[ ! "$ollama_response" =~ "Error" ]]; then
                 new_name="$ollama_response"
                 echo "✓ Got response from Ollama" >&2
             else
                 echo "✗ Ollama failed" >&2
-                if [[ "$ollama_response" =~ "pulling" ]]; then
-                    echo "  Model is being downloaded. Please wait and try again." >&2
-                elif [[ -n "$ollama_response" ]]; then
+                if [[ -n "$ollama_response" ]]; then
                     echo "  Response: $ollama_response" >&2
+                else
+                    echo "  Note: Ollama may need restart: brew services restart ollama" >&2
                 fi
             fi
         fi
