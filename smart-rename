@@ -56,11 +56,11 @@ api:
 # Prompt template (customize as needed)
 prompt:
   template: |
-    Generate a concise, descriptive filename based on this content (no extension, lowercase, hyphens only).
-    ONLY for receipts/invoices with a specific monetary amount, use: YYYY-MM-DD-amount.cc-description (e.g., 2024-01-15-123.45-office-supplies).
-    For all other documents, use: descriptive-name-YY-MM-DD (e.g., meeting-notes-project-alpha-24-03-15).
-    Never use 0.00 as an amount - if no clear price exists, it is not a receipt/invoice.
-    Content: {{CONTENT}}
+    What is a good filename for this document? Reply with ONLY the filename, nothing else.
+    Use lowercase and hyphens. No file extension.
+    If it is a receipt or invoice with a price, start with the date and price like: 2024-01-15-49.99-amazon-order
+    Otherwise use a descriptive name like: warranty-guide-mini-pc or tax-return-2024
+    Document content: {{CONTENT}}
 EOF
     fi
 
@@ -100,7 +100,7 @@ EOF
 
     # Set default prompt if not configured
     if [[ -z "$PROMPT_TEMPLATE" ]]; then
-        PROMPT_TEMPLATE="Generate a concise, descriptive filename based on this content (no extension, lowercase, hyphens only). ONLY for receipts/invoices with a specific monetary amount in $BASE_CURRENCY, use: YYYY-MM-DD-amount.cc-description (e.g., 2024-01-15-123.45-office-supplies). For all other documents, use: descriptive-name-YY-MM-DD (e.g., meeting-notes-project-alpha-24-03-15). Never use 0.00 as an amount - if no clear price exists, it is not a receipt/invoice. Content: {{CONTENT}}"
+        PROMPT_TEMPLATE="What is a good filename for this document? Reply with ONLY the filename, nothing else. Use lowercase and hyphens. No file extension. If it is a receipt or invoice with a price, start with the date and price like: 2024-01-15-49.99-amazon-order. Otherwise use a descriptive name like: warranty-guide-mini-pc or tax-return-2024. Document content: {{CONTENT}}"
     fi
 }
 
