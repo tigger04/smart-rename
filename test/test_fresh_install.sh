@@ -113,21 +113,20 @@ else
     test_fail "Version flag failed"
 fi
 
-# Test 6: Default config is created automatically
-test_start "Default configuration created"
-# Run any command that would trigger config creation
-smart-rename --help >/dev/null 2>&1 || true
-if [[ -f "$TEST_CONFIG_DIR/config.yaml" ]]; then
+# Test 6: Default config is created by Homebrew postinstall
+test_start "Default configuration created by postinstall"
+# The config should be created by the Homebrew postinstall step
+if [[ -f "$HOME/.config/smart-rename/config.yaml" ]]; then
     test_pass
 else
-    test_fail "Default config not created at $TEST_CONFIG_DIR/config.yaml"
+    test_fail "Default config not created at $HOME/.config/smart-rename/config.yaml"
 fi
 
 # Test 7: Default config doesn't override environment variables
 test_start "Default config allows environment variable fallback"
-if [[ -f "$TEST_CONFIG_DIR/config.yaml" ]]; then
+if [[ -f "$HOME/.config/smart-rename/config.yaml" ]]; then
     # Check that API keys are commented out in default config
-    if grep -q "^[[:space:]]*#.*key:" "$TEST_CONFIG_DIR/config.yaml" || ! grep -q "key:.*\"\"" "$TEST_CONFIG_DIR/config.yaml"; then
+    if grep -q "^[[:space:]]*#.*key:" "$HOME/.config/smart-rename/config.yaml" || ! grep -q "key:.*\"\"" "$HOME/.config/smart-rename/config.yaml"; then
         test_pass
     else
         test_fail "Default config contains uncommented empty API keys that would override environment variables"

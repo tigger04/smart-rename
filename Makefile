@@ -27,6 +27,8 @@ test:
 	@./test/test_yaml_simple.sh
 	@echo "Running installation tests..."
 	@./test/test_install.sh
+	@echo "Running API configuration tests..."
+	@./test/test_api_configurations.sh
 	@echo "Running Homebrew tests..."
 	@./test/test_homebrew.sh
 	@echo "Running fresh install tests..."
