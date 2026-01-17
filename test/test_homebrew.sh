@@ -80,6 +80,29 @@ else
     test_fail "Formula validation failed"
 fi
 
+# Test 4b: Test inreplace pattern by checking formula source
+test_start "Verify inreplace pattern matches actual source code"
+# Extract the inreplace pattern from the formula
+FORMULA_PATH="/opt/homebrew/Library/Taps/tigger04/homebrew-tap/Formula/smart-rename.rb"
+if [[ -f "$FORMULA_PATH" ]]; then
+    # Get the search pattern from the formula
+    SEARCH_PATTERN=$(grep -A1 "inreplace.*smart-rename" "$FORMULA_PATH" | tail -1 | sed "s/.*'\(.*\)'.*/\1/")
+
+    # Check if this pattern exists in the actual source
+    TEMP_DIR=$(mktemp -d)
+    curl -sL "https://github.com/tigger04/smart-rename/archive/afc44fd9b12d6c46b4504054007a86ab0134b412.tar.gz" | tar -xz -C "$TEMP_DIR" 2>/dev/null
+    SOURCE_FILE="$TEMP_DIR/smart-rename-afc44fd9b12d6c46b4504054007a86ab0134b412/smart-rename"
+
+    if [[ -f "$SOURCE_FILE" ]] && grep -qF "$SEARCH_PATTERN" "$SOURCE_FILE"; then
+        test_pass
+    else
+        test_fail "inreplace pattern '$SEARCH_PATTERN' not found in source code"
+    fi
+    rm -rf "$TEMP_DIR" 2>/dev/null || true
+else
+    test_fail "Could not find formula file to verify inreplace pattern"
+fi
+
 # Test 5: No LFS-related errors in recent tap operation
 test_start "No Git LFS errors during tap operation"
 RECENT_TAP=$(brew tap-info tigger04/tap 2>&1)
