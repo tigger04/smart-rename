@@ -58,8 +58,8 @@ prompt:
   template: |
     Suggest a filename. Reply with ONLY the filename, nothing else.
     Rules: lowercase, hyphens, no extension.
-    For receipts/invoices with a price: 2024-01-15-49.99-vendor-name
-    For other documents: descriptive-name-here
+    For receipts/invoices: 2024-01-15-49.99-amazon-order or 2024-03-22-150.00-dentist-receipt
+    For other documents: project-proposal-acme-corp or user-manual-dishwasher
     Document: {{CONTENT}}
 EOF
     fi
@@ -100,7 +100,7 @@ EOF
 
     # Set default prompt if not configured
     if [[ -z "$PROMPT_TEMPLATE" ]]; then
-        PROMPT_TEMPLATE="Suggest a filename. Reply with ONLY the filename, nothing else. Rules: lowercase, hyphens, no extension. For receipts/invoices with a price: 2024-01-15-49.99-vendor-name. For other documents: descriptive-name-here. Document: {{CONTENT}}"
+        PROMPT_TEMPLATE="Suggest a filename. Reply with ONLY the filename, nothing else. Rules: lowercase, hyphens, no extension. For receipts/invoices: 2024-01-15-49.99-amazon-order or 2024-03-22-150.00-dentist-receipt. For other documents: project-proposal-acme-corp or user-manual-dishwasher. Document: {{CONTENT}}"
     fi
 }
 
@@ -332,8 +332,7 @@ process_file() {
 
     # Confirm rename unless auto mode
     if [[ "$AUTO_RENAME" != "true" ]]; then
-        echo "📎 ${file}"
-        echo "    ⬇️"
+        echo "📎 ${file} →"
         echo -n "🆕 ${new_name}"
         read -p "(y/N):" -n 1 -r
         echo  # Add newline after single character input
