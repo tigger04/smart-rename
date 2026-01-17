@@ -42,6 +42,11 @@ test_normalise() {
         result="${date_part}-${amount}0-${rest}"
     fi
 
+    # Reject 0.00 amounts - these are not real invoices/receipts
+    if [[ "$result" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}-0\.00-(.+)$ ]]; then
+        result="${BASH_REMATCH[1]}"
+    fi
+
     if [[ "$result" == "$expected" ]]; then
         echo "PASS: $description"
         echo "      Input:    $input"
@@ -101,6 +106,15 @@ test_normalise "2024-04-01-1500-annual-subscription" \
 test_normalise "2024-04-01-1500-50-annual-subscription" \
                "2024-04-01-1500.50-annual-subscription" \
                "Larger amount with hyphen decimal (1500-50 -> 1500.50)"
+
+# Test 0.00 rejection (not a real invoice)
+test_normalise "2024-05-01-0.00-meeting-notes-project" \
+               "meeting-notes-project" \
+               "Zero amount rejected (0.00 stripped, not an invoice)"
+
+test_normalise "2024-05-01-0-some-document" \
+               "some-document" \
+               "Zero amount rejected (0 -> 0.00 -> stripped)"
 
 # Summary
 echo "=== Summary ==="

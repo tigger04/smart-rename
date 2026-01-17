@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-VERSION="5.20.2"
+VERSION="5.21.0"
 SCRIPT_NAME="smart-rename"
 CONFIG_DIR="$HOME/.config/smart-rename"
 CONFIG_FILE="$CONFIG_DIR/config.yaml"
@@ -56,8 +56,10 @@ api:
 # Prompt template (customize as needed)
 prompt:
   template: |
-    Generate a concise, descriptive filename for the following content (no extension, lowercase, use hyphens).
-    For receipts/invoices use YYYY-MM-DD-amount.cc-description format where amount always includes exactly two decimal places using a period as decimal separator (e.g., 123.45 or 100.00).
+    Generate a concise, descriptive filename based on this content (no extension, lowercase, hyphens only).
+    ONLY for receipts/invoices with a specific monetary amount, use: YYYY-MM-DD-amount.cc-description (e.g., 2024-01-15-123.45-office-supplies).
+    For all other documents, use: descriptive-name-YY-MM-DD (e.g., meeting-notes-project-alpha-24-03-15).
+    Never use 0.00 as an amount - if no clear price exists, it is not a receipt/invoice.
     Content: {{CONTENT}}
 EOF
     fi
@@ -98,7 +100,7 @@ EOF
 
     # Set default prompt if not configured
     if [[ -z "$PROMPT_TEMPLATE" ]]; then
-        PROMPT_TEMPLATE="Generate a concise, descriptive filename for the following content (no extension, lowercase, use hyphens). For receipts/invoices use YYYY-MM-DD-amount.cc-description format where amount always includes exactly two decimal places using a period as decimal separator (e.g., 123.45 or 100.00). Use $BASE_CURRENCY as default currency. Content: {{CONTENT}}"
+        PROMPT_TEMPLATE="Generate a concise, descriptive filename based on this content (no extension, lowercase, hyphens only). ONLY for receipts/invoices with a specific monetary amount in $BASE_CURRENCY, use: YYYY-MM-DD-amount.cc-description (e.g., 2024-01-15-123.45-office-supplies). For all other documents, use: descriptive-name-YY-MM-DD (e.g., meeting-notes-project-alpha-24-03-15). Never use 0.00 as an amount - if no clear price exists, it is not a receipt/invoice. Content: {{CONTENT}}"
     fi
 }
 
@@ -285,6 +287,13 @@ process_file() {
         local amount="${BASH_REMATCH[2]}"
         local rest="${BASH_REMATCH[3]}"
         new_name="${date_part}-${amount}0-${rest}"
+    fi
+
+    # Reject 0.00 amounts - these are not real invoices/receipts
+    # Convert back to descriptive format by removing the date-amount prefix
+    if [[ "$new_name" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}-0\.00-(.+)$ ]]; then
+        new_name="${BASH_REMATCH[1]}"
+        echo "Note: Removed invalid 0.00 amount from filename" >&2
     fi
 
     # Add extension
