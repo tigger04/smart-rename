@@ -5,6 +5,7 @@
 set -euo pipefail
 
 VERSION="3.0.0"
+SCRIPT_NAME="smart-rename"
 
 # Simple function to process a file
 process_file() {
@@ -65,18 +66,79 @@ process_file() {
 
     echo "Generated name: $new_name" >&2
 
-    # Rename the file
+    # Check if file exists
     if [[ -e "$new_name" ]]; then
         echo "File already exists: $new_name" >&2
         return 1
     fi
 
+    # Confirm rename unless auto mode
+    if [[ "$AUTO_RENAME" != "true" ]]; then
+        read -p "Rename '$file' to '$new_name'? (y/N): " -r
+        if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
+            echo "Skipped"
+            return 0
+        fi
+    fi
+
+    # Rename the file
     mv "$file" "$new_name" && echo "Renamed: $file -> $new_name"
+}
+
+# Show help
+show_help() {
+    cat <<EOF
+USAGE: $SCRIPT_NAME [OPTIONS] FILE_OR_PATTERN
+
+DESCRIPTION:
+  AI-powered file renaming tool that generates intelligent filenames
+
+OPTIONS:
+  -h, --help     Show this help message
+  -v, --version  Show version
+  -y, --yes      Auto-rename without confirmation
+
+EXAMPLES:
+  $SCRIPT_NAME document.txt
+  $SCRIPT_NAME -y invoice.pdf
+
+EOF
 }
 
 # Main
 if [[ $# -eq 0 ]]; then
-    echo "Usage: $0 <file>"
+    show_help
+    exit 1
+fi
+
+# Parse arguments
+AUTO_RENAME=false
+FILE=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        -v|--version)
+            echo "$SCRIPT_NAME $VERSION"
+            exit 0
+            ;;
+        -y|--yes)
+            AUTO_RENAME=true
+            shift
+            ;;
+        *)
+            FILE="$1"
+            shift
+            ;;
+    esac
+done
+
+if [[ -z "$FILE" ]]; then
+    echo "Error: No file specified"
+    show_help
     exit 1
 fi
 
@@ -86,4 +148,4 @@ if [[ -f "$HOME/.config/smart-rename/config.yaml" ]] && command -v yq >/dev/null
     [[ -n "$key" ]] && export OPENAI_API_KEY="$key"
 fi
 
-process_file "$1"
+process_file "$FILE"
