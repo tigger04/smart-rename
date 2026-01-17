@@ -91,6 +91,43 @@ abbreviations:
 - If no API keys but Ollama is running locally, uses Ollama
 - If all are provided, the default can be set in `config.yaml`
 
+### Local AI with Ollama
+
+The default local model is **Qwen2.5 3B**, chosen for:
+- Better accuracy for filename generation than alternatives
+- Lower hallucination rate for structured output
+- Optimized for 8GB RAM on Apple Silicon
+- Good balance of speed and quality
+
+The model is automatically pulled on first use. To use a different model, set `api.ollama.model` in your config.
+
+**Optional: Custom Modelfile**
+
+For optimized local processing, create a custom model with tuned parameters:
+
+```bash
+# Create ~/.ollama/modelfiles/smart-rename.Modelfile
+cat > ~/.ollama/modelfiles/smart-rename.Modelfile << 'EOF'
+FROM qwen2.5:3b
+
+SYSTEM """You generate concise, descriptive filenames.
+Rules:
+- Output only the filename, nothing else
+- No extension, lowercase, use hyphens
+- For receipts/invoices: YYYY-MM-DD-amount.cc-description
+- Amount always includes exactly two decimal places
+- Be specific, preserve key names, dates, figures"""
+
+PARAMETER temperature 0.2
+PARAMETER num_ctx 8192
+EOF
+
+# Build it
+ollama create smart-rename -f ~/.ollama/modelfiles/smart-rename.Modelfile
+```
+
+Then set `model: smart-rename` in your config to use it.
+
 ## Usage
 
 ```bash
