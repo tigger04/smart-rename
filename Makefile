@@ -75,7 +75,7 @@ bump:
 	@OLD_VERSION=$$(grep '^VERSION=' $(SCRIPT) | cut -d'"' -f2); \
 	NEW_VERSION=$$(echo "$$OLD_VERSION" | awk -F. '{$$NF = $$NF + 1;} 1' OFS=.); \
 	echo "Bumping version: $$OLD_VERSION -> $$NEW_VERSION"; \
-	sed -i '' "s/^VERSION=\"$$OLD_VERSION\"/VERSION=\"$$NEW_VERSION\"/" $(SCRIPT)
+	sed -i.bak "s/^VERSION=\"$$OLD_VERSION\"/VERSION=\"$$NEW_VERSION\"/" $(SCRIPT) && rm -f $(SCRIPT).bak
 
 # Full release workflow
 release: test
@@ -119,9 +119,9 @@ formula:
 	CURRENT_SHA=$$(shasum -a 256 $(SCRIPT) | awk '{print $$1}'); \
 	echo "  Version: $$CURRENT_VERSION"; \
 	echo "  SHA256:  $$CURRENT_SHA"; \
-	sed -i '' "s|url \"https://raw.githubusercontent.com/tigger04/smart-rename/v[^\"]*|url \"https://raw.githubusercontent.com/tigger04/smart-rename/v$$CURRENT_VERSION|" "$(FORMULA_PATH)"; \
-	sed -i '' "s|sha256 \"[^\"]*\"|sha256 \"$$CURRENT_SHA\"|" "$(FORMULA_PATH)"; \
-	sed -i '' "s|version \"[^\"]*\"|version \"$$CURRENT_VERSION\"|" "$(FORMULA_PATH)"; \
+	sed -i.bak "s|url \"https://raw.githubusercontent.com/tigger04/smart-rename/v[^\"]*|url \"https://raw.githubusercontent.com/tigger04/smart-rename/v$$CURRENT_VERSION|" "$(FORMULA_PATH)"; \
+	sed -i.bak "s|sha256 \"[^\"]*\"|sha256 \"$$CURRENT_SHA\"|" "$(FORMULA_PATH)"; \
+	sed -i.bak "s|version \"[^\"]*\"|version \"$$CURRENT_VERSION\"|" "$(FORMULA_PATH)" && rm -f "$(FORMULA_PATH).bak"; \
 	cd "$$(dirname "$(FORMULA_PATH)")" && \
 		git add smart-rename.rb && \
 		git commit -m "smart-rename $$CURRENT_VERSION" && \
