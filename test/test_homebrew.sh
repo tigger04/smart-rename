@@ -63,13 +63,13 @@ else
     test_fail "smart-rename formula not found in tap"
 fi
 
-# Test 3: Formula should include pandoc dependency
-test_start "smart-rename formula includes pandoc dependency"
+# Test 3: Formula should include pandoc and ollama dependencies
+test_start "smart-rename formula includes required dependencies"
 FORMULA_INFO=$(brew info tigger04/tap/smart-rename 2>&1)
-if echo "$FORMULA_INFO" | grep -q "pandoc"; then
+if echo "$FORMULA_INFO" | grep -q "pandoc" && echo "$FORMULA_INFO" | grep -q "ollama"; then
     test_pass
 else
-    test_fail "pandoc dependency not found in formula"
+    test_fail "Required dependencies (pandoc, ollama) not found in formula"
 fi
 
 # Test 4: Formula validation (dry run install)
@@ -89,13 +89,13 @@ else
     test_pass
 fi
 
-# Test 6: Caveats mention automatic config creation
-test_start "Caveats mention automatic YAML config creation"
+# Test 6: Caveats mention automatic config and Ollama setup
+test_start "Caveats mention config creation and Ollama ready status"
 FORMULA_INFO=$(brew info tigger04/tap/smart-rename 2>&1)
-if echo "$FORMULA_INFO" | grep -q "default configuration file has been created"; then
+if echo "$FORMULA_INFO" | grep -q "default configuration file has been created" && echo "$FORMULA_INFO" | grep -q "ready to use with Ollama"; then
     test_pass
 else
-    test_fail "Caveats should mention automatic config creation"
+    test_fail "Caveats should mention config creation and Ollama ready status"
 fi
 
 # Cleanup
