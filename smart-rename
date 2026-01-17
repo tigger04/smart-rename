@@ -263,26 +263,25 @@ parse_smart_filename_arguments "$@"
 
 # Find files if a pattern is provided
 if [[ -n "$search_pattern" ]]; then
-    # Use 'find' to find files
-    declare -a find_args=(".")
+    # Use 'fd' to find files
+    declare -a fd_args=()
 
     if [[ "$recursive_search" == false ]]; then
-        find_args+=(-maxdepth 1)
+        fd_args+=(--max-depth 1)
     fi
 
     if [[ "$search_mode" == "glob" ]]; then
         # Glob pattern
-        find_args+=(-name "$search_pattern")
+        fd_args+=(--glob "$search_pattern")
     else
-        # Regex pattern - find uses different regex syntax
-        find_args+=(-regex ".*$search_pattern.*")
+        # Regex pattern (default)
+        fd_args+=("$search_pattern")
     fi
 
-    find_args+=(-type f)
+    fd_args+=(--type f)
 
     # Read found files into the array
-    # Using mapfile is safer for filenames with special characters
-    mapfile -t files_to_process < <(find "${find_args[@]}" 2>/dev/null | sed 's|^\./||')
+    mapfile -t files_to_process < <(fd "${fd_args[@]}" . 2>/dev/null)
 
     if [ ${#files_to_process[@]} -eq 0 ]; then
         echo "No files found matching '$search_pattern'." >&2
