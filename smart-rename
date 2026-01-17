@@ -10,6 +10,54 @@ while [[ -L "$script" ]]; do
     script="$(readlink "$script")"
     [[ $script != /* ]] && script="$script_dir/$script"
 done
+# Handle help flag early, before any library loading or configuration
+if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
+   cat - <<EOM
+USAGE
+------
+smart-rename [OPTIONS] [PATTERN]
+
+DESCRIPTION
+-----------
+AI-powered file renaming tool that generates intelligent, descriptive filenames
+
+PATTERN
+-------
+If provided, smart-rename will find files matching the pattern and rename them.
+If no pattern is provided, interactive mode is started.
+
+Pattern types:
+  - By default, patterns are treated as POSIX regex
+  - Use --glob to treat pattern as shell glob pattern
+
+OPTIONS
+-------
+-h, --help        Show this help message and exit
+-v, --version     Show version and exit
+-y, --yes         Skip confirmation prompts
+-d, --dry-run     Show what would be renamed without actually renaming
+-r, --recursive   Search for files recursively in subdirectories
+-g, --glob        Treat pattern as shell glob instead of regex
+
+EXAMPLES
+--------
+# Rename all PDF files in current directory
+smart-rename "\.pdf$"
+
+# Interactive mode (no pattern)
+smart-rename
+
+# Dry run with glob pattern
+smart-rename --dry-run --glob "*.txt"
+
+# Recursive search for image files
+smart-rename --recursive "\.(jpg|png|gif)$"
+
+For more information, visit: https://github.com/tigger04/smart-rename
+EOM
+   exit 0
+fi
+
 script_dir="$(cd -P "$(dirname "$script")" && pwd)"
 # shellcheck source=./summarize-text-lib.sh
 source "$script_dir/summarize-text-lib.sh"
@@ -117,9 +165,6 @@ parse_smart_filename_arguments() {
       -y | --yes)
          skip_confirmation=true
          ;;
-      -h | --help)
-         display_help_text_and_die
-         ;;
       -r | --recursive)
          recursive_search=true
          ;;
@@ -205,10 +250,6 @@ smart_filename_output() {
    fi
 }
 
-# Handle help flag
-if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
-   display_help_text_and_die
-fi
 
 # Parse command-line arguments
 parse_smart_filename_arguments "$@"

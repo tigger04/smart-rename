@@ -52,10 +52,13 @@ setup_test_env() {
     mkdir -p "$TEST_CONFIG_DIR"
     export HOME="$TEST_HOME"
 
-    # Ensure we have a clean environment
+    # Ensure we have a clean environment - unset ALL API-related variables
     unset OPENAI_API_KEY
     unset ANTHROPIC_API_KEY
+    unset CLAUDE_API_KEY
     unset SMART_RENAME_CONFIG
+    unset CLAUDECODE
+    unset CLAUDE_CODE_ENTRYPOINT
 }
 
 # Ensure cleanup on exit
