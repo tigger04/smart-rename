@@ -350,13 +350,6 @@ for PATTERN in "${PATTERNS[@]}"; do
     # Check if pattern is a file
     if [[ -f "$PATTERN" ]]; then
         # Single file mode
-        if [[ "$AUTO_RENAME" != "true" ]]; then
-            read -p "Process '$PATTERN'? (y/N): " -r
-            if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
-                echo "Skipped: $PATTERN" >&2
-                continue
-            fi
-        fi
         process_file "$PATTERN"
     else
         # Pattern matching mode - find files
