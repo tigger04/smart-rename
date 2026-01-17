@@ -111,13 +111,14 @@ load_config() {
    fi
 
    # Auto-detect default if not set
+   # Prefer Ollama first since it works out of the box without API keys
    if [[ -z "$active_function" ]]; then
-      if [[ "$openai_available" == true ]]; then
+      if [[ "$ollama_available" == true ]]; then
+         active_function="ollama"
+      elif [[ "$openai_available" == true ]]; then
          active_function="openai"
       elif [[ "$claude_available" == true ]]; then
          active_function="claude"
-      elif [[ "$ollama_available" == true ]]; then
-         active_function="ollama"
       else
          echo "⚠️ No AI service available. Please set OPENAI_API_KEY, CLAUDE_API_KEY, or ensure Ollama is running." >&2
          echo "You can also create a config file at ~/.config/smart-rename/config" >&2
