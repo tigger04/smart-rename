@@ -28,8 +28,8 @@ setup() {
 
     # Create test files
     echo "Test content" > test-file.txt
-    echo "Invoice total: $100.00" > invoice.pdf
-    echo "Receipt for coffee $5.50" > receipt-001.jpg
+    echo 'Invoice total: $100.00' > invoice.pdf
+    echo 'Receipt for coffee $5.50' > receipt-001.jpg
     mkdir -p subdir
     echo "Nested file" > subdir/nested.txt
 }
@@ -240,7 +240,7 @@ test_auto_confirm_flag() {
     echo -e "\n${YELLOW}Testing auto-confirm flag...${NC}"
 
     # Test that -y flag is recognized
-    assert_output_contains "'$SCRIPT' --help" "--yes" "Help mentions --yes flag"
+    assert_output_contains "'$SCRIPT' --help" "\-\-yes" "Help mentions --yes flag"
     assert_output_contains "'$SCRIPT' --help" "Skip confirmation" "Help explains --yes flag purpose"
 }
 
@@ -248,9 +248,9 @@ test_auto_confirm_flag() {
 test_ai_provider_flags() {
     echo -e "\n${YELLOW}Testing AI provider flags...${NC}"
 
-    assert_output_contains "'$SCRIPT' --help" "--ollama" "Help mentions Ollama flag"
-    assert_output_contains "'$SCRIPT' --help" "--openai" "Help mentions OpenAI flag"
-    assert_output_contains "'$SCRIPT' --help" "--claude" "Help mentions Claude flag"
+    assert_output_contains "'$SCRIPT' --help" "\-\-ollama" "Help mentions Ollama flag"
+    assert_output_contains "'$SCRIPT' --help" "\-\-openai" "Help mentions OpenAI flag"
+    assert_output_contains "'$SCRIPT' --help" "\-\-claude" "Help mentions Claude flag"
 }
 
 # Run all tests
