@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-VERSION="5.17.0"
+VERSION="5.18.0"
 SCRIPT_NAME="smart-rename"
 CONFIG_DIR="$HOME/.config/smart-rename"
 CONFIG_FILE="$CONFIG_DIR/config.yaml"
@@ -203,6 +203,14 @@ process_file() {
         if ! curl -s http://localhost:11434/api/version >/dev/null 2>&1; then
             echo "⚠ Ollama service not running. Start with: brew services start ollama" >&2
         else
+            # Check if model is available, pull if not
+            if ! ollama list 2>/dev/null | grep -q "^${OLLAMA_MODEL}"; then
+                echo "Pulling Ollama model '$OLLAMA_MODEL' (first run only)..." >&2
+                if ! ollama pull "$OLLAMA_MODEL" >&2; then
+                    echo "✗ Failed to pull Ollama model '$OLLAMA_MODEL'" >&2
+                fi
+            fi
+
             echo "Trying Ollama ($OLLAMA_MODEL)..." >&2
 
             # Create temp file for prompt to avoid shell escaping issues
