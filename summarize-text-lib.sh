@@ -148,8 +148,16 @@ ollama() {
       # Use remote Ollama API
       result=$(curl "${OLLAMA_API_URL}/api/generate" \
          -s \
+         --max-time 60 \
+         --connect-timeout 10 \
          -d "$(jq -n --arg model "$ollama_model" --arg prompt "$prompt" \
-            '{model: $model, prompt: $prompt, stream: false}')" | jq -r '.response')
+            '{model: $model, prompt: $prompt, stream: false}')" 2>/dev/null | jq -r '.response' 2>/dev/null)
+
+      if [[ $? -ne 0 || -z "$result" ]]; then
+         echo "❌ Remote Ollama request failed or timed out." >&2
+         echo "   URL: ${OLLAMA_API_URL}" >&2
+         exit 1
+      fi
       output_result "$result"
       return
    fi
@@ -161,8 +169,8 @@ ollama() {
       exit 1
    fi
 
-   # Check if the model is available
-   if ! ollama list | grep -q "^$ollama_model:"; then
+   # Check if the model is available (with timeout)
+   if ! timeout 10 ollama list 2>/dev/null | grep -q "^$ollama_model:"; then
       echo "⚠️ Model '$ollama_model' not found locally." >&2
       echo "Available models:" >&2
       ollama list >&2
@@ -181,7 +189,14 @@ ollama() {
       fi
    fi
 
-   result=$(ollama run "$ollama_model" "$prompt")
+   # Run with timeout and error handling
+   result=$(timeout 60 ollama run "$ollama_model" "$prompt" 2>/dev/null)
+   if [[ $? -ne 0 ]]; then
+      echo "❌ Ollama request failed or timed out." >&2
+      echo "   Model: $ollama_model" >&2
+      echo "   Check if Ollama service is running: brew services restart ollama" >&2
+      exit 1
+   fi
    output_result "$result"
 }
 
@@ -204,6 +219,8 @@ openai() {
 
    result=$(curl https://api.openai.com/v1/chat/completions \
       -s \
+      --max-time 60 \
+      --connect-timeout 10 \
       -H "Authorization: Bearer $OPENAI_API_KEY" \
       -H "Content-Type: application/json" \
       -d "$(jq -n --arg prompt "$prompt" --arg model "$openai_model" \
@@ -215,7 +232,14 @@ openai() {
                 content: $prompt
                }
             ]
-      }')" | jq -r '.choices[0].message.content')
+      }')" 2>/dev/null | jq -r '.choices[0].message.content' 2>/dev/null)
+
+   if [[ $? -ne 0 || -z "$result" || "$result" == "null" ]]; then
+      echo "❌ OpenAI API request failed or timed out." >&2
+      echo "   Model: $openai_model" >&2
+      echo "   Check your API key and network connection." >&2
+      exit 1
+   fi
    output_result "$result"
 }
 

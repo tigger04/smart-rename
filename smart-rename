@@ -280,11 +280,22 @@ if [[ -n "$search_pattern" ]]; then
 
     fd_args+=(--type f)
 
+    # Debug: Show the fd command being run
+    echo "🔍 Searching for files with pattern: '$search_pattern'" >&2
+    echo "🔍 Running: fd ${fd_args[*]} ." >&2
+
     # Read found files into the array
     mapfile -t files_to_process < <(fd "${fd_args[@]}" . 2>/dev/null)
 
+    echo "🔍 Found ${#files_to_process[@]} files:" >&2
+    for file in "${files_to_process[@]}"; do
+        echo "  - $file" >&2
+    done
+
     if [ ${#files_to_process[@]} -eq 0 ]; then
         echo "No files found matching '$search_pattern'." >&2
+        echo "Current directory contents:" >&2
+        ls -la >&2
         exit 0
     fi
 fi
