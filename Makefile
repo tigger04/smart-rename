@@ -29,6 +29,8 @@ test:
 	@./test/test_install.sh
 	@echo "Running Homebrew tests..."
 	@./test/test_homebrew.sh
+	@echo "Running fresh install tests..."
+	@./test/test_fresh_install.sh
 	@echo "All tests passed!"
 
 # Development install (requires sudo)

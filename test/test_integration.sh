@@ -75,7 +75,15 @@ else
     fail "Makefile missing install target"
 fi
 
-# Test 6: Test file creation and pattern matching
+# Test 6: Help flag functionality
+run_test "Help flag works"
+if ./smart-rename -h >/dev/null 2>&1; then
+    pass "Help flag (-h) works correctly"
+else
+    fail "Help flag (-h) failed"
+fi
+
+# Test 7: Test file creation and pattern matching
 run_test "File pattern operations"
 echo "This is a test receipt from 2024-01-15 for €25.50." > "$TMP_DIR/receipt-test.txt"
 if [[ -f "$TMP_DIR/receipt-test.txt" ]]; then
