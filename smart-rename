@@ -10,7 +10,7 @@ while [[ -L "$script" ]]; do
     script="$(readlink "$script")"
     [[ $script != /* ]] && script="$script_dir/$script"
 done
-# Handle help flag early, before any library loading or configuration
+# Handle help and version flags early, before any library loading or configuration
 if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
    cat - <<EOM
 USAGE
@@ -55,6 +55,13 @@ smart-rename --recursive "\.(jpg|png|gif)$"
 
 For more information, visit: https://github.com/tigger04/smart-rename
 EOM
+   exit 0
+fi
+
+if [[ "$1" == "-v" ]] || [[ "$1" == "--version" ]]; then
+   echo "smart-rename 1.0.0-dev"
+   echo "AI-powered file renaming tool"
+   echo "https://github.com/tigger04/smart-rename"
    exit 0
 fi
 
