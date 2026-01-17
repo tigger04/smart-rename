@@ -41,6 +41,14 @@ AI-powered file renaming tool that generates intelligent, descriptive filenames 
 brew install tigger04/tap/smart-rename
 ```
 
+### Dependencies
+
+The following are installed automatically via Homebrew:
+- `fd` - fast file finder
+- `yq` - YAML parser
+- `jq` - JSON parser
+- `poppler` - PDF text extraction (provides `pdftotext`)
+
 ### Other platforms
 - Linux package managers coming soon, meanwhile see the Dev install guide below
 
@@ -130,9 +138,10 @@ smart-rename --openai receipt.jpg
 - Uses current date if not found in content
 
 ### Receipts/Invoices
-- Format: `YYYY-MM-DD-amount-description.ext`
+- Format: `YYYY-MM-DD-amount.cc-description.ext` (amount always includes two decimal places)
+- Examples: `2024-01-15-123.45-office-supplies.pdf`, `2024-02-28-100.00-monthly-subscription.pdf`
 - Amount in base currency (base currency configurable, default EUR)
-- Non-base currency: `YYYY-MM-DD-CUR-amount-description.ext` where CUR is the ISO currency code.
+- Non-base currency: `YYYY-MM-DD-CUR-amount.cc-description.ext` where CUR is the ISO currency code.
 
 ### Abbreviations (Configurable)
 The tool comes with a few example abbreviations, adjust to your own needs in `config.yaml`

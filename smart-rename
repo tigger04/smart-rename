@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-VERSION="5.18.0"
+VERSION="5.19.0"
 SCRIPT_NAME="smart-rename"
 CONFIG_DIR="$HOME/.config/smart-rename"
 CONFIG_FILE="$CONFIG_DIR/config.yaml"
@@ -57,7 +57,7 @@ api:
 prompt:
   template: |
     Generate a concise, descriptive filename for the following content (no extension, lowercase, use hyphens).
-    For receipts/invoices use YYYY-MM-DD-amount-description format.
+    For receipts/invoices use YYYY-MM-DD-amount.cc-description format where amount always includes exactly two decimal places using a period as decimal separator (e.g., 123.45 or 100.00).
     Content: {{CONTENT}}
 EOF
     fi
@@ -98,7 +98,7 @@ EOF
 
     # Set default prompt if not configured
     if [[ -z "$PROMPT_TEMPLATE" ]]; then
-        PROMPT_TEMPLATE="Generate a concise, descriptive filename for the following content (no extension, lowercase, use hyphens). For receipts/invoices use YYYY-MM-DD-amount-description format with $BASE_CURRENCY as default currency. Content: {{CONTENT}}"
+        PROMPT_TEMPLATE="Generate a concise, descriptive filename for the following content (no extension, lowercase, use hyphens). For receipts/invoices use YYYY-MM-DD-amount.cc-description format where amount always includes exactly two decimal places using a period as decimal separator (e.g., 123.45 or 100.00). Use $BASE_CURRENCY as default currency. Content: {{CONTENT}}"
     fi
 }
 
@@ -251,6 +251,29 @@ process_file() {
 
     # Clean the name (keep periods for decimal amounts)
     new_name=$(echo "$new_name" | tr -d '"' | tr ' ' '-' | tr -cd '[:alnum:].-' | tr '[:upper:]' '[:lower:]')
+
+    # Normalise receipt/invoice amounts to always have two decimal places
+    # Pattern: YYYY-MM-DD-amount-description where amount may be malformed
+    if [[ "$new_name" =~ ^([0-9]{4}-[0-9]{2}-[0-9]{2})-([0-9]+)-([0-9]{2})-(.+)$ ]]; then
+        # Case: hyphen used as decimal separator (e.g., 198-75 instead of 198.75)
+        local date_part="${BASH_REMATCH[1]}"
+        local amount_whole="${BASH_REMATCH[2]}"
+        local amount_decimal="${BASH_REMATCH[3]}"
+        local rest="${BASH_REMATCH[4]}"
+        new_name="${date_part}-${amount_whole}.${amount_decimal}-${rest}"
+    elif [[ "$new_name" =~ ^([0-9]{4}-[0-9]{2}-[0-9]{2})-([0-9]+)-([^0-9].*)$ ]]; then
+        # Case: whole number without decimals (e.g., 100 instead of 100.00)
+        local date_part="${BASH_REMATCH[1]}"
+        local amount="${BASH_REMATCH[2]}"
+        local rest="${BASH_REMATCH[3]}"
+        new_name="${date_part}-${amount}.00-${rest}"
+    elif [[ "$new_name" =~ ^([0-9]{4}-[0-9]{2}-[0-9]{2})-([0-9]+\.[0-9])-([^0-9].*)$ ]]; then
+        # Case: single decimal place (e.g., 100.5 instead of 100.50)
+        local date_part="${BASH_REMATCH[1]}"
+        local amount="${BASH_REMATCH[2]}"
+        local rest="${BASH_REMATCH[3]}"
+        new_name="${date_part}-${amount}0-${rest}"
+    fi
 
     # Add extension
     local ext="${file##*.}"

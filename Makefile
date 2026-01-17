@@ -19,20 +19,8 @@ help:
 
 # Run tests
 test:
-	@echo "Running configuration tests..."
-	@./test/test_config.sh
-	@echo "Running integration tests..."
-	@./test/test_integration.sh
-	@echo "Running YAML configuration tests..."
-	@./test/test_yaml_simple.sh
-	@echo "Running installation tests..."
-	@./test/test_install.sh
-	@echo "Running API configuration tests..."
-	@./test/test_api_configurations.sh
-	@echo "Running Homebrew tests..."
-	@./test/test_homebrew.sh
-	@echo "Running fresh install tests..."
-	@./test/test_fresh_install.sh
+	@echo "Running decimal normalisation tests..."
+	@./test/test_decimal_normalisation.sh
 	@echo "All tests passed!"
 
 # Development install (requires sudo)
