@@ -332,7 +332,10 @@ process_file() {
 
     # Confirm rename unless auto mode
     if [[ "$AUTO_RENAME" != "true" ]]; then
-        read -p "Rename '$file' to '$new_name'? (y/N): " -n 1 -r
+        echo "📎 ${file}"
+        echo "    ⬇️"
+        echo -n "🆕 ${new_name}"
+        read -p "(y/N):" -n 1 -r
         echo  # Add newline after single character input
         if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
             echo "Skipped"
