@@ -59,7 +59,7 @@ EOM
 fi
 
 if [[ "$1" == "-v" ]] || [[ "$1" == "--version" ]]; then
-   echo "smart-rename 1.0.1-dev"
+   echo "smart-rename 1.0.2-dev"
    echo "AI-powered file renaming tool"
    echo "https://github.com/tigger04/smart-rename"
    exit 0
