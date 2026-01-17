@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-VERSION="4.0.0"
+VERSION="4.1.0"
 SCRIPT_NAME="smart-rename"
 CONFIG_DIR="$HOME/.config/smart-rename"
 CONFIG_FILE="$CONFIG_DIR/config.yaml"
@@ -114,8 +114,26 @@ process_file() {
 
     # Try Ollama if available
     if command -v ollama >/dev/null 2>&1; then
-        echo "Using Ollama ($OLLAMA_MODEL)..." >&2
-        new_name=$(echo "$prompt" | timeout "$API_TIMEOUT" ollama run "$OLLAMA_MODEL" 2>/dev/null | head -1) || true
+        # Check if Ollama service is running
+        if ! curl -s http://localhost:11434/api/version >/dev/null 2>&1; then
+            echo "⚠ Ollama service not running. Start with: brew services start ollama" >&2
+        else
+            echo "Trying Ollama ($OLLAMA_MODEL)..." >&2
+            local ollama_response
+            ollama_response=$(echo "$prompt" | timeout "$API_TIMEOUT" ollama run "$OLLAMA_MODEL" 2>&1 | head -1) || true
+
+            if [[ -n "$ollama_response" ]] && [[ ! "$ollama_response" =~ "Error" ]] && [[ ! "$ollama_response" =~ "pulling" ]]; then
+                new_name="$ollama_response"
+                echo "✓ Got response from Ollama" >&2
+            else
+                echo "✗ Ollama failed" >&2
+                if [[ "$ollama_response" =~ "pulling" ]]; then
+                    echo "  Model is being downloaded. Please wait and try again." >&2
+                elif [[ -n "$ollama_response" ]]; then
+                    echo "  Response: $ollama_response" >&2
+                fi
+            fi
+        fi
     fi
 
     # Try OpenAI if we have a key and no response yet
@@ -154,8 +172,8 @@ process_file() {
         return 1
     fi
 
-    # Clean the name
-    new_name=$(echo "$new_name" | tr -d '"' | tr ' ' '-' | tr -cd '[:alnum:]-' | tr '[:upper:]' '[:lower:]')
+    # Clean the name (keep periods for decimal amounts)
+    new_name=$(echo "$new_name" | tr -d '"' | tr ' ' '-' | tr -cd '[:alnum:].-' | tr '[:upper:]' '[:lower:]')
 
     # Add extension
     local ext="${file##*.}"
