@@ -2,7 +2,7 @@
 # ABOUTME: Build configuration for smart-rename project
 # ABOUTME: Provides test targets, development installation, and release automation
 
-.PHONY: test install uninstall clean help release tag formula brew-upgrade
+.PHONY: test install uninstall clean help release bump tag formula brew-upgrade
 
 # Configuration
 SCRIPT := smart-rename
@@ -14,7 +14,8 @@ SHA256 := $(shell shasum -a 256 $(SCRIPT) | awk '{print $$1}')
 help:
 	@echo "Available targets:"
 	@echo "  test         - Run all tests"
-	@echo "  release      - Full release: test, tag, formula, push (requires clean git)"
+	@echo "  release      - Full release: test, bump, commit, tag, formula, brew-upgrade"
+	@echo "  bump         - Increment patch version (X.Y.Z -> X.Y.Z+1)"
 	@echo "  tag          - Create and push git tag for current VERSION"
 	@echo "  formula      - Update Homebrew formula with current VERSION and SHA"
 	@echo "  brew-upgrade - Upgrade local Homebrew installation"
@@ -69,17 +70,32 @@ clean:
 test/tmp:
 	mkdir -p test/tmp
 
+# Increment patch version (X.Y.Z -> X.Y.Z+1)
+bump:
+	@OLD_VERSION=$$(grep '^VERSION=' $(SCRIPT) | cut -d'"' -f2); \
+	NEW_VERSION=$$(echo "$$OLD_VERSION" | awk -F. '{$$NF = $$NF + 1;} 1' OFS=.); \
+	echo "Bumping version: $$OLD_VERSION -> $$NEW_VERSION"; \
+	sed -i '' "s/^VERSION=\"$$OLD_VERSION\"/VERSION=\"$$NEW_VERSION\"/" $(SCRIPT)
+
 # Full release workflow
 release: test
-	@echo "=== Release $(VERSION) ==="
+	@echo "=== Starting release ==="
 	@if [ -n "$$(git status --porcelain)" ]; then \
 		echo "Error: Working directory not clean. Commit changes first."; \
 		exit 1; \
 	fi
-	@$(MAKE) tag
+	@$(MAKE) bump
+	@NEW_VERSION=$$(grep '^VERSION=' $(SCRIPT) | cut -d'"' -f2); \
+	echo "=== Releasing v$$NEW_VERSION ==="; \
+	git add $(SCRIPT) && \
+	git commit -m "chore: bump version to $$NEW_VERSION" && \
+	git push origin master && \
+	git tag "v$$NEW_VERSION" && \
+	git push origin "v$$NEW_VERSION" && \
+	echo "Tagged and pushed v$$NEW_VERSION"
 	@$(MAKE) formula
 	@$(MAKE) brew-upgrade
-	@echo "=== Release $(VERSION) complete ==="
+	@echo "=== Release complete ==="
 
 # Create and push git tag
 tag:
@@ -92,21 +108,23 @@ tag:
 		echo "Tag v$(VERSION) pushed"; \
 	fi
 
-# Update Homebrew formula
+# Update Homebrew formula (re-reads version/sha dynamically)
 formula:
 	@echo "Updating Homebrew formula..."
 	@if [ -z "$(FORMULA_PATH)" ] || [ ! -f "$(FORMULA_PATH)" ]; then \
 		echo "Error: Formula not found. Is tigger04/tap tapped?"; \
 		exit 1; \
 	fi
-	@echo "  Version: $(VERSION)"
-	@echo "  SHA256:  $(SHA256)"
-	@sed -i '' 's|url "https://raw.githubusercontent.com/tigger04/smart-rename/v[^"]*|url "https://raw.githubusercontent.com/tigger04/smart-rename/v$(VERSION)|' "$(FORMULA_PATH)"
-	@sed -i '' 's|sha256 "[^"]*"|sha256 "$(SHA256)"|' "$(FORMULA_PATH)"
-	@sed -i '' 's|version "[^"]*"|version "$(VERSION)"|' "$(FORMULA_PATH)"
-	@cd "$$(dirname "$(FORMULA_PATH)")" && \
+	@CURRENT_VERSION=$$(grep '^VERSION=' $(SCRIPT) | cut -d'"' -f2); \
+	CURRENT_SHA=$$(shasum -a 256 $(SCRIPT) | awk '{print $$1}'); \
+	echo "  Version: $$CURRENT_VERSION"; \
+	echo "  SHA256:  $$CURRENT_SHA"; \
+	sed -i '' "s|url \"https://raw.githubusercontent.com/tigger04/smart-rename/v[^\"]*|url \"https://raw.githubusercontent.com/tigger04/smart-rename/v$$CURRENT_VERSION|" "$(FORMULA_PATH)"; \
+	sed -i '' "s|sha256 \"[^\"]*\"|sha256 \"$$CURRENT_SHA\"|" "$(FORMULA_PATH)"; \
+	sed -i '' "s|version \"[^\"]*\"|version \"$$CURRENT_VERSION\"|" "$(FORMULA_PATH)"; \
+	cd "$$(dirname "$(FORMULA_PATH)")" && \
 		git add smart-rename.rb && \
-		git commit -m "smart-rename $(VERSION)" && \
+		git commit -m "smart-rename $$CURRENT_VERSION" && \
 		git push
 	@echo "Formula updated and pushed"
 

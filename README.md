@@ -221,11 +221,10 @@ sudo make uninstall
 For maintainers releasing new versions:
 
 ```bash
-# 1. Make changes and bump VERSION in smart-rename script
-# 2. Commit and push
+# 1. Make your changes and commit them
 git add -A && git commit -m "feat: description" && git push
 
-# 3. Run full release (tests, git tag, Homebrew formula update)
+# 2. Run release (auto-bumps version, tags, updates Homebrew)
 make release
 ```
 
@@ -234,16 +233,19 @@ make release
 | Target | Description |
 |--------|-------------|
 | `make test` | Run all tests |
-| `make release` | Full release: test → tag → formula → brew-upgrade |
+| `make release` | Full release: test → bump → commit → tag → formula → brew-upgrade |
+| `make bump` | Increment patch version (X.Y.Z → X.Y.Z+1) |
 | `make tag` | Create and push git tag for current VERSION |
 | `make formula` | Update Homebrew formula with version and SHA256 |
 | `make brew-upgrade` | Upgrade local Homebrew installation |
 
 The release process automatically:
-- Extracts VERSION from the script
-- Calculates SHA256 hash
-- Updates the Homebrew formula in `tigger04/homebrew-tap`
-- Requires a clean git working directory
+- Increments the patch version (e.g., 5.20.0 → 5.20.1)
+- Commits the version bump
+- Creates and pushes a git tag
+- Updates the Homebrew formula with new version and SHA256
+- Upgrades the local Homebrew installation
+- Requires a clean git working directory before starting
 
 ## License
 
