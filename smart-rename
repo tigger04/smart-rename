@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-VERSION="5.19.0"
+VERSION="5.19.1"
 SCRIPT_NAME="smart-rename"
 CONFIG_DIR="$HOME/.config/smart-rename"
 CONFIG_FILE="$CONFIG_DIR/config.yaml"
@@ -107,6 +107,12 @@ process_file() {
     local file="$1"
     local content=""
 
+    # Check file exists
+    if [[ ! -f "$file" ]]; then
+        echo "Error: File not found: $file" >&2
+        return 1
+    fi
+
     # Read file content based on type
     local extension="${file##*.}"
     extension=$(echo "$extension" | tr '[:upper:]' '[:lower:]')
@@ -114,17 +120,19 @@ process_file() {
     case "$extension" in
         pdf)
             # Try to extract text from PDF
-            if command -v pdftotext >/dev/null 2>&1; then
-                content=$(pdftotext "$file" - 2>/dev/null | head -c "$MAX_CONTENT_LENGTH") || {
-                    echo "Error extracting text from PDF: $file" >&2
-                    echo "Hint: Install poppler-utils for PDF support (brew install poppler)" >&2
-                    return 1
-                }
-            else
-                echo "Error: pdftotext not found. Install poppler-utils for PDF support:" >&2
+            if ! command -v pdftotext >/dev/null 2>&1; then
+                echo "Error: pdftotext not found. Install poppler for PDF support:" >&2
                 echo "  brew install poppler" >&2
                 return 1
             fi
+            local pdf_error
+            pdf_error=$(pdftotext "$file" - 2>&1 >/dev/null) || true
+            if [[ -n "$pdf_error" ]]; then
+                echo "Error extracting text from PDF: $file" >&2
+                echo "  $pdf_error" >&2
+                return 1
+            fi
+            content=$(pdftotext "$file" - 2>/dev/null | head -c "$MAX_CONTENT_LENGTH")
             ;;
         jpg|jpeg|png|gif|bmp|tiff|webp)
             # For images, we'd need vision API support
