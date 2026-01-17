@@ -9,49 +9,82 @@ if [ "${BASH_VERSINFO[0]}" -lt 3 ] || ([ "${BASH_VERSINFO[0]}" -eq 3 ] && [ "${B
    exit 1
 fi
 
-# Simple YAML parser for basic key: value pairs
-parse_yaml() {
-   local yaml_file="$1"
-   local prefix="$2"
-   local s='[[:space:]]*' w='[a-zA-Z0-9_]*' fs=$(echo @|tr @ '\034')
+# Simple and reliable config parser (no Python dependency)
+parse_simple_config() {
+   local config_file="$1"
 
-   sed -ne "s|^\($s\):|\1|" \
-       -e "s|^\($s\)\($w\)$s:$s[\"']\(.*\)[\"']$s\$|\1$fs\2$fs\3|p" \
-       -e "s|^\($s\)\($w\)$s:$s\(.*\)$s\$|\1$fs\2$fs\3|p" "$yaml_file" |
-   awk -F$fs '{
-      indent = length($1)/2;
-      vname[indent] = $2;
-      for (i in vname) {if (i > indent) {delete vname[i]}}
-      if (length($3) > 0) {
-         vn=""; for (i=0; i<indent; i++) {vn=(vn)(vname[i])("_")}
-         printf("%s%s%s=\"%s\"\n", "'$prefix'",vn, $2, $3);
-      }
-   }'
+   echo "🔍 Loading configuration from: $config_file" >&2
+
+   if [[ ! -f "$config_file" ]]; then
+      echo "ℹ️ No config file found, using defaults" >&2
+      return 0
+   fi
+
+   # Extract OpenAI key (look for uncommented lines only)
+   local openai_key=$(grep -A10 "^[[:space:]]*openai:" "$config_file" | grep -v "^[[:space:]]*#" | grep -E "^[[:space:]]*key:" | head -1 | sed -E 's/.*key:[[:space:]]*["\047]?([^"\047]*)["\047]?.*/\1/')
+   if [[ -n "$openai_key" && "$openai_key" != "" ]]; then
+      export OPENAI_API_KEY="$openai_key"
+      echo "✅ OpenAI API key found in config" >&2
+   fi
+
+   # Extract Claude key
+   local claude_key=$(grep -A10 "^[[:space:]]*claude:" "$config_file" | grep -v "^[[:space:]]*#" | grep -E "^[[:space:]]*key:" | head -1 | sed -E 's/.*key:[[:space:]]*["\047]?([^"\047]*)["\047]?.*/\1/')
+   if [[ -n "$claude_key" && "$claude_key" != "" ]]; then
+      export CLAUDE_API_KEY="$claude_key"
+      echo "✅ Claude API key found in config" >&2
+   fi
+
+   # Extract Ollama URL
+   local ollama_url=$(grep -A10 "^[[:space:]]*ollama:" "$config_file" | grep -v "^[[:space:]]*#" | grep -E "^[[:space:]]*url:" | head -1 | sed -E 's/.*url:[[:space:]]*["\047]?([^"\047]*)["\047]?.*/\1/')
+   if [[ -n "$ollama_url" ]]; then
+      export OLLAMA_API_URL="$ollama_url"
+      echo "✅ Ollama URL: $ollama_url" >&2
+   fi
+
+   echo "✅ Configuration loaded successfully" >&2
 }
 
-# Load YAML config into variables
+# Load YAML config using proper YAML parser
 load_yaml_config() {
    local yaml_file="$1"
    if [[ -f "$yaml_file" ]]; then
-      # Parse YAML and evaluate the output
-      eval $(parse_yaml "$yaml_file" "yaml_")
+      echo "🔍 Loading configuration from: $yaml_file" >&2
 
-      # Map YAML config to our variables
-      [[ -n "${yaml_api_openai_key:-}" ]] && export OPENAI_API_KEY="$yaml_api_openai_key"
-      [[ -n "${yaml_api_claude_key:-}" ]] && export CLAUDE_API_KEY="$yaml_api_claude_key"
-      [[ -n "${yaml_api_ollama_url:-}" ]] && export OLLAMA_API_URL="$yaml_api_ollama_url"
-      [[ -n "${yaml_api_openai_model:-}" ]] && openai_model="$yaml_api_openai_model"
-      [[ -n "${yaml_api_claude_model:-}" ]] && claude_model="$yaml_api_claude_model"
-      [[ -n "${yaml_api_ollama_model:-}" ]] && ollama_model="$yaml_api_ollama_model"
-      [[ -n "${yaml_default_provider:-}" ]] && active_function="$yaml_default_provider"
-      [[ -n "${yaml_currency_base:-}" ]] && base_currency="$yaml_currency_base"
-      [[ -n "${yaml_prompts_rename:-}" ]] && yaml_prompt_template="$yaml_prompts_rename"
+      # Use yq to parse YAML properly
+      if command -v yq >/dev/null 2>&1; then
+         local openai_key=$(yq eval '.api.openai.key // ""' "$yaml_file" 2>/dev/null)
+         local openai_model_val=$(yq eval '.api.openai.model // ""' "$yaml_file" 2>/dev/null)
+         local claude_key=$(yq eval '.api.claude.key // ""' "$yaml_file" 2>/dev/null)
+         local claude_model_val=$(yq eval '.api.claude.model // ""' "$yaml_file" 2>/dev/null)
+         local ollama_url=$(yq eval '.api.ollama.url // ""' "$yaml_file" 2>/dev/null)
+         local ollama_model_val=$(yq eval '.api.ollama.model // ""' "$yaml_file" 2>/dev/null)
+         local base_curr=$(yq eval '.base_currency // ""' "$yaml_file" 2>/dev/null)
+         local yaml_prompt=$(yq eval '.prompts.template // ""' "$yaml_file" 2>/dev/null)
+      else
+         echo "⚠️ yq not found, install with: brew install yq" >&2
+         return 1
+      fi
 
-      # Load abbreviations from YAML
-      for var in $(compgen -v yaml_abbreviations_); do
-         key="${var#yaml_abbreviations_}"
-         abbreviations["$key"]="${!var}"
-      done
+      echo "🔑 Configuration values found:" >&2
+      [[ -n "$openai_key" && "$openai_key" != "" ]] && echo "  - OpenAI key: ***${openai_key: -4}" >&2
+      [[ -n "$openai_model_val" ]] && echo "  - OpenAI model: $openai_model_val" >&2
+      [[ -n "$claude_key" && "$claude_key" != "" ]] && echo "  - Claude key: ***${claude_key: -4}" >&2
+      [[ -n "$claude_model_val" ]] && echo "  - Claude model: $claude_model_val" >&2
+      [[ -n "$ollama_url" ]] && echo "  - Ollama URL: $ollama_url" >&2
+      [[ -n "$ollama_model_val" ]] && echo "  - Ollama model: $ollama_model_val" >&2
+      [[ -n "$base_curr" ]] && echo "  - Base currency: $base_curr" >&2
+
+      # Only set if not empty (preserves environment variables)
+      [[ -n "$openai_key" && "$openai_key" != "" ]] && export OPENAI_API_KEY="$openai_key"
+      [[ -n "$openai_model_val" ]] && openai_model="$openai_model_val"
+      [[ -n "$claude_key" && "$claude_key" != "" ]] && export CLAUDE_API_KEY="$claude_key"
+      [[ -n "$claude_model_val" ]] && claude_model="$claude_model_val"
+      [[ -n "$ollama_url" ]] && export OLLAMA_API_URL="$ollama_url"
+      [[ -n "$ollama_model_val" ]] && ollama_model="$ollama_model_val"
+      [[ -n "$base_curr" ]] && base_currency="$base_curr"
+      [[ -n "$yaml_prompt" ]] && yaml_prompt_template="$yaml_prompt"
+   else
+      echo "⚠️ Configuration file not found: $yaml_file" >&2
    fi
 }
 
