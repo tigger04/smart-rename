@@ -88,19 +88,23 @@ process_file() {
 # Show help
 show_help() {
     cat <<EOF
-USAGE: $SCRIPT_NAME [OPTIONS] FILE_OR_PATTERN
+USAGE: $SCRIPT_NAME [OPTIONS] PATTERN [PATTERN...]
 
 DESCRIPTION:
   AI-powered file renaming tool that generates intelligent filenames
 
 OPTIONS:
-  -h, --help     Show this help message
-  -v, --version  Show version
-  -y, --yes      Auto-rename without confirmation
+  -h, --help        Show this help message
+  -v, --version     Show version
+  -y, --yes         Auto-rename without confirmation
+  -r, --recursive   Search recursively
+  -g, --glob        Use glob pattern instead of regex
 
 EXAMPLES:
-  $SCRIPT_NAME document.txt
-  $SCRIPT_NAME -y invoice.pdf
+  $SCRIPT_NAME 'scan.*\.pdf'        # Find files matching regex
+  $SCRIPT_NAME -g '*.txt'            # Find files matching glob
+  $SCRIPT_NAME -r 'invoice'          # Recursive search
+  $SCRIPT_NAME -y document.pdf       # Specific file, auto-rename
 
 EOF
 }
@@ -113,7 +117,9 @@ fi
 
 # Parse arguments
 AUTO_RENAME=false
-FILE=""
+RECURSIVE=false
+USE_GLOB=false
+PATTERNS=()
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -129,15 +135,23 @@ while [[ $# -gt 0 ]]; do
             AUTO_RENAME=true
             shift
             ;;
+        -r|--recursive)
+            RECURSIVE=true
+            shift
+            ;;
+        -g|--glob)
+            USE_GLOB=true
+            shift
+            ;;
         *)
-            FILE="$1"
+            PATTERNS+=("$1")
             shift
             ;;
     esac
 done
 
-if [[ -z "$FILE" ]]; then
-    echo "Error: No file specified"
+if [[ ${#PATTERNS[@]} -eq 0 ]]; then
+    echo "Error: No pattern specified"
     show_help
     exit 1
 fi
@@ -148,4 +162,67 @@ if [[ -f "$HOME/.config/smart-rename/config.yaml" ]] && command -v yq >/dev/null
     [[ -n "$key" ]] && export OPENAI_API_KEY="$key"
 fi
 
-process_file "$FILE"
+# Process all patterns
+for PATTERN in "${PATTERNS[@]}"; do
+    # Check if pattern is a file
+    if [[ -f "$PATTERN" ]]; then
+        # Single file mode
+        if [[ "$AUTO_RENAME" != "true" ]]; then
+            read -p "Process '$PATTERN'? (y/N): " -r
+            if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
+                echo "Skipped: $PATTERN" >&2
+                continue
+            fi
+        fi
+        process_file "$PATTERN"
+    else
+        # Pattern matching mode - find files
+        echo "Searching for files matching: $PATTERN" >&2
+
+        # Build fd arguments
+        FD_ARGS=()
+
+        # Add depth control
+        if [[ "$RECURSIVE" == "false" ]]; then
+            FD_ARGS+=(--max-depth 1)
+        fi
+
+        # Add pattern based on mode
+        if [[ "$USE_GLOB" == "true" ]]; then
+            FD_ARGS+=(--glob "$PATTERN")
+        else
+            # Default is regex
+            FD_ARGS+=("$PATTERN")
+        fi
+
+        FD_ARGS+=(--type f .)
+
+        # Use fd to find files
+        mapfile -t files < <(fd "${FD_ARGS[@]}" 2>/dev/null || true)
+
+        if [[ ${#files[@]} -eq 0 ]]; then
+            echo "No files found matching pattern: $PATTERN" >&2
+            continue
+        fi
+
+        echo "Found ${#files[@]} files:" >&2
+        for file in "${files[@]}"; do
+            echo "  - $file" >&2
+        done
+        echo "" >&2
+
+        # Process each file
+        for file in "${files[@]}"; do
+            if [[ "$AUTO_RENAME" != "true" ]]; then
+                read -p "Process '$file'? (y/N): " -r
+                if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
+                    echo "Skipped: $file" >&2
+                    continue
+                fi
+            fi
+
+            process_file "$file" || true
+            echo "" >&2
+        done
+    fi
+done
