@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-VERSION="4.1.0"
+VERSION="4.2.0"
 SCRIPT_NAME="smart-rename"
 CONFIG_DIR="$HOME/.config/smart-rename"
 CONFIG_FILE="$CONFIG_DIR/config.yaml"
@@ -20,6 +20,48 @@ API_TIMEOUT=30
 
 # Load configuration
 load_config() {
+    # Create config directory if it doesn't exist
+    if [[ ! -d "$CONFIG_DIR" ]]; then
+        mkdir -p "$CONFIG_DIR"
+        echo "Created config directory: $CONFIG_DIR" >&2
+    fi
+
+    # Create default config if it doesn't exist
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        echo "Creating default config at: $CONFIG_FILE" >&2
+        cat > "$CONFIG_FILE" <<'EOF'
+# smart-rename configuration
+# Edit this file to customize behavior
+
+# Base currency for receipts/invoices
+currency:
+  base: EUR
+
+# AI Provider settings
+api:
+  ollama:
+    model: mistral
+    timeout: 30
+
+  openai:
+    model: gpt-4o-mini
+    # Uncomment and add your API key:
+    # key: sk-...
+
+  claude:
+    model: claude-3-haiku-20240307
+    # Uncomment and add your API key:
+    # key: sk-ant-...
+
+# Prompt template (customize as needed)
+prompt:
+  template: |
+    Generate a concise, descriptive filename for the following content (no extension, lowercase, use hyphens).
+    For receipts/invoices use YYYY-MM-DD-amount-description format.
+    Content: {{CONTENT}}
+EOF
+    fi
+
     if [[ -f "$CONFIG_FILE" ]] && command -v yq >/dev/null 2>&1; then
         # Load prompt template
         local prompt=$(yq eval '.prompt.template // ""' "$CONFIG_FILE" 2>/dev/null)
