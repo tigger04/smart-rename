@@ -20,6 +20,9 @@ test_normalise() {
     local description="$3"
     local result="$input"
 
+    # Strip leading/trailing hyphens and collapse multiple consecutive hyphens
+    result=$(echo "$result" | sed 's/^-*//; s/-*$//; s/-\{2,\}/-/g')
+
     # Apply the same normalisation logic as in smart-rename
     if [[ "$result" =~ ^([0-9]{4}-[0-9]{2}-[0-9]{2})-([0-9]+)-([0-9]{2})-(.+)$ ]]; then
         # Case: hyphen used as decimal separator (e.g., 198-75 instead of 198.75)
@@ -115,6 +118,19 @@ test_normalise "2024-05-01-0.00-meeting-notes-project" \
 test_normalise "2024-05-01-0-some-document" \
                "some-document" \
                "Zero amount rejected (0 -> 0.00 -> stripped)"
+
+# Test hyphen stripping (garbage from local models)
+test_normalise "-------2024-01-15-49.99-amazon-order" \
+               "2024-01-15-49.99-amazon-order" \
+               "Leading hyphens stripped"
+
+test_normalise "warranty-guide-mini-pc----" \
+               "warranty-guide-mini-pc" \
+               "Trailing hyphens stripped"
+
+test_normalise "---warranty---guide---mini---pc---" \
+               "warranty-guide-mini-pc" \
+               "Multiple consecutive hyphens collapsed"
 
 # Summary
 echo "=== Summary ==="
