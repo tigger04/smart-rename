@@ -1,0 +1,79 @@
+# smart-rename configuration
+# This file should be placed at ~/.config/smart-rename/config.yaml
+
+# Prompt template for AI
+# Available placeholders:
+#   {{CONTENT}} - The file content
+#   {{FILENAME}} - Current filename
+#   {{BASE_CURRENCY}} - Your base currency
+prompt:
+  template: |
+    Generate a concise, descriptive filename for the following content (excluding extension).
+    The filename should be in lowercase, use hyphens to separate words, and avoid special characters.
+
+    For receipts/invoices:
+    - Format: YYYY-MM-DD-amount-description
+    - Use {{BASE_CURRENCY}} as default currency
+    - Other currencies: YYYY-MM-DD-CUR-amount-description
+
+    For other documents:
+    - Include date if found in content (YYYY-MM-DD format)
+    - Be descriptive but concise
+
+    Content:
+    {{CONTENT}}
+
+# Currency settings
+currency:
+  base: EUR  # Default currency for receipts/invoices
+
+# AI Provider Configuration
+api:
+  # Preferred provider order (first available will be used)
+  # Options: ollama, openai, claude
+  preference:
+    - ollama
+    - openai
+    - claude
+
+  ollama:
+    model: mistral
+    timeout: 30
+    # url: http://localhost:11434  # Uncomment to use remote Ollama
+
+  openai:
+    model: gpt-4o-mini
+    # API key - can be set here or as OPENAI_API_KEY environment variable
+    # key: sk-...
+    max_tokens: 100
+    timeout: 30
+
+  claude:
+    model: claude-3-haiku-20240307
+    # API key - can be set here or as CLAUDE_API_KEY environment variable
+    # key: sk-ant-...
+    max_tokens: 100
+    timeout: 30
+
+# File processing settings
+processing:
+  max_content_length: 5000  # Characters to read from files
+  pdf_extract_pages: 5      # Max pages to extract from PDFs
+
+# Abbreviations for common terms
+# These will be expanded in filenames
+abbreviations:
+  svph: "st-vincents-private-hospital"
+  svuh: "st-vincents-university-hospital"
+  nrh: "national-rehabilitation-hospital"
+  mater: "mater-misericordiae-university-hospital"
+
+# Search behavior
+search:
+  default_recursive: false  # Set to true to search recursively by default
+  default_pattern_type: regex  # Options: regex, glob
+
+# Rename behavior
+rename:
+  auto_confirm: false  # Set to true to skip confirmation prompts
+  create_backup: false  # Set to true to create .bak files before renaming
