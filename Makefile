@@ -27,6 +27,8 @@ test:
 	@./test/test_yaml_simple.sh
 	@echo "Running installation tests..."
 	@./test/test_install.sh
+	@echo "Running Homebrew tests..."
+	@./test/test_homebrew.sh
 	@echo "All tests passed!"
 
 # Development install (requires sudo)
