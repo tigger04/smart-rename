@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-VERSION="5.19.1"
+VERSION="5.19.2"
 SCRIPT_NAME="smart-rename"
 CONFIG_DIR="$HOME/.config/smart-rename"
 CONFIG_FILE="$CONFIG_DIR/config.yaml"
@@ -226,14 +226,18 @@ process_file() {
             echo "$prompt" > "$temp_prompt"
 
             # Use Ollama CLI with temp file input, clean up ANSI codes
+            # Capture full output first to avoid SIGPIPE from early pipe closure
+            local temp_output
+            temp_output=$(mktemp)
+            timeout "$API_TIMEOUT" ollama run "$OLLAMA_MODEL" < "$temp_prompt" > "$temp_output" 2>&1 || true
             local ollama_response
-            ollama_response=$(timeout "$API_TIMEOUT" ollama run "$OLLAMA_MODEL" < "$temp_prompt" 2>&1 | \
-                sed 's/\x1b\[[0-9;]*[mGKHJ]//g' | \
+            ollama_response=$(sed 's/\x1b\[[0-9;]*[mGKHJ]//g' "$temp_output" | \
                 sed 's/\[?[0-9]*[hl]//g' | \
                 tr -d '\r' | \
                 sed '/^$/d' | \
                 grep -v '^\[' | \
                 head -1) || true
+            rm -f "$temp_output"
 
             rm -f "$temp_prompt"
 
