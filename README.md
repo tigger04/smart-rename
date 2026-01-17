@@ -216,6 +216,35 @@ sudo make install
 sudo make uninstall
 ```
 
+## Release Workflow
+
+For maintainers releasing new versions:
+
+```bash
+# 1. Make changes and bump VERSION in smart-rename script
+# 2. Commit and push
+git add -A && git commit -m "feat: description" && git push
+
+# 3. Run full release (tests, git tag, Homebrew formula update)
+make release
+```
+
+**Available make targets:**
+
+| Target | Description |
+|--------|-------------|
+| `make test` | Run all tests |
+| `make release` | Full release: test → tag → formula → brew-upgrade |
+| `make tag` | Create and push git tag for current VERSION |
+| `make formula` | Update Homebrew formula with version and SHA256 |
+| `make brew-upgrade` | Upgrade local Homebrew installation |
+
+The release process automatically:
+- Extracts VERSION from the script
+- Calculates SHA256 hash
+- Updates the Homebrew formula in `tigger04/homebrew-tap`
+- Requires a clean git working directory
+
 ## License
 
 MIT License - See LICENSE file for details
