@@ -1,273 +1,89 @@
 #!/usr/bin/env bash
-# ABOUTME: Smart file renaming script using AI to generate intelligent filenames
-# ABOUTME: Processes files based on content and generates descriptive names
+# ABOUTME: Smart file renaming using AI to generate descriptive filenames
+# ABOUTME: Simple, focused implementation that actually works
 
 set -euo pipefail
 
-# Script version
-VERSION="2.0.0"
-SCRIPT_NAME="smart-rename"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VERSION="3.0.0"
 
-# Load configuration and library functions
-source "$SCRIPT_DIR/summarize-text-lib.sh" 2>/dev/null || {
-    echo "Error: Cannot find summarize-text-lib.sh" >&2
-    exit 1
-}
-
-# Default values
-SKIP_CONFIRMATION=false
-RECURSIVE=false
-SEARCH_MODE="regex"
-PATTERN=""
-DEBUG="${DEBUG:-false}"
-
-# Print debug information
-debug() {
-    if [[ "$DEBUG" == "true" ]]; then
-        echo "[DEBUG] $*" >&2
-    fi
-}
-
-# Print error and exit
-die() {
-    echo "Error: $*" >&2
-    exit 1
-}
-
-# Show help message
-show_help() {
-    cat <<EOF
-USAGE
-------
-$SCRIPT_NAME [OPTIONS] PATTERN
-
-DESCRIPTION
------------
-AI-powered file renaming tool that generates intelligent, descriptive filenames
-
-PATTERN
--------
-Pattern to match files for processing (required)
-- By default: Rust regex (Perl-style)
-- With --glob: Shell glob pattern
-
-OPTIONS
--------
--h, --help        Show this help message
--v, --version     Show version information
--y, --yes         Skip confirmation prompts
--r, --recursive   Search files recursively
--g, --glob        Use glob pattern instead of regex
-
-AI PROVIDERS
-------------
---ollama[=MODEL]  Use Ollama (local AI)
---openai[=MODEL]  Use OpenAI API
---claude          Use Claude API
-
-EXAMPLES
---------
-# Find and rename PDF files
-$SCRIPT_NAME '\.pdf\$'
-
-# Recursive search with glob
-$SCRIPT_NAME -r -g '*.txt'
-
-# Auto-rename without confirmation
-$SCRIPT_NAME -y receipt.jpg
-
-For more information: https://github.com/tigger04/smart-rename
-EOF
-}
-
-# Show version
-show_version() {
-    echo "$SCRIPT_NAME $VERSION"
-    echo "AI-powered file renaming tool"
-    echo "https://github.com/tigger04/smart-rename"
-}
-
-# Parse command line arguments
-parse_args() {
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            -h|--help)
-                show_help
-                exit 0
-                ;;
-            -v|--version)
-                show_version
-                exit 0
-                ;;
-            -y|--yes)
-                SKIP_CONFIRMATION=true
-                shift
-                ;;
-            -r|--recursive)
-                RECURSIVE=true
-                shift
-                ;;
-            -g|--glob)
-                SEARCH_MODE="glob"
-                shift
-                ;;
-            --ollama*)
-                ACTIVE_PROVIDER="ollama"
-                if [[ "$1" =~ ^--ollama=(.+)$ ]]; then
-                    OLLAMA_MODEL="${BASH_REMATCH[1]}"
-                fi
-                shift
-                ;;
-            --openai*)
-                ACTIVE_PROVIDER="openai"
-                if [[ "$1" =~ ^--openai=(.+)$ ]]; then
-                    OPENAI_MODEL="${BASH_REMATCH[1]}"
-                fi
-                shift
-                ;;
-            --claude)
-                ACTIVE_PROVIDER="claude"
-                shift
-                ;;
-            -*)
-                die "Unknown option: $1"
-                ;;
-            *)
-                PATTERN="$1"
-                shift
-                ;;
-        esac
-    done
-
-    # Validate pattern is provided
-    if [[ -z "$PATTERN" ]]; then
-        echo "Error: $SCRIPT_NAME requires a search PATTERN" >&2
-        echo "Usage: $SCRIPT_NAME [OPTIONS] PATTERN" >&2
-        echo "Run '$SCRIPT_NAME --help' for more information." >&2
-        exit 1
-    fi
-}
-
-# Find files matching pattern
-find_files() {
-    local pattern="$1"
-    local -a fd_args=()
-
-    # Set depth limit for non-recursive search
-    if [[ "$RECURSIVE" == "false" ]]; then
-        fd_args+=(--max-depth 1)
-    fi
-
-    # Add pattern based on search mode
-    if [[ "$SEARCH_MODE" == "glob" ]]; then
-        fd_args+=(--glob "$pattern")
-    else
-        fd_args+=("$pattern")
-    fi
-
-    # Only search files
-    fd_args+=(--type f)
-
-    # Debug output
-    debug "Running: fd ${fd_args[*]} ."
-    echo "Searching for files with pattern: '$pattern'" >&2
-
-    # Find files
-    local -a files
-    mapfile -t files < <(fd "${fd_args[@]}" . 2>/dev/null || true)
-
-    if [[ ${#files[@]} -eq 0 ]]; then
-        echo "No files found matching '$pattern'" >&2
-        return 1
-    fi
-
-    echo "Found ${#files[@]} file(s):" >&2
-    for file in "${files[@]}"; do
-        echo "  - $file" >&2
-    done
-
-    printf '%s\n' "${files[@]}"
-}
-
-# Process a single file
+# Simple function to process a file
 process_file() {
     local file="$1"
+    local content=""
 
-    if [[ ! -f "$file" ]]; then
-        echo "File not found: $file" >&2
-        return 1
-    fi
-
-    echo "Processing: $file" >&2
-
-    # Generate new name using AI
-    local new_name
-    new_name=$(generate_filename "$file") || {
-        echo "Failed to generate filename for: $file" >&2
+    # Read file content (first 5000 chars)
+    content=$(head -c 5000 "$file" 2>/dev/null) || {
+        echo "Error reading file: $file" >&2
         return 1
     }
 
-    # Get file extension
+    if [[ -z "$content" ]]; then
+        echo "File is empty: $file" >&2
+        return 1
+    fi
+
+    # Build prompt
+    local prompt="Generate a concise, descriptive filename for this content (no extension, lowercase, use hyphens): $content"
+
+    # Try to get AI response
+    local new_name=""
+
+    # Try Ollama if available
+    if command -v ollama >/dev/null 2>&1; then
+        echo "Using Ollama..." >&2
+        new_name=$(echo "$prompt" | timeout 30 ollama run mistral 2>/dev/null | head -1) || true
+    fi
+
+    # Try OpenAI if we have a key and no response yet
+    if [[ -z "$new_name" && -n "${OPENAI_API_KEY:-}" ]]; then
+        echo "Using OpenAI..." >&2
+        local json_payload=$(jq -n --arg p "$prompt" '{
+            model: "gpt-4o-mini",
+            messages: [{role: "user", content: $p}],
+            max_tokens: 50
+        }')
+
+        new_name=$(curl -s --max-time 30 https://api.openai.com/v1/chat/completions \
+            -H "Authorization: Bearer $OPENAI_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$json_payload" | jq -r '.choices[0].message.content // empty' | head -1) || true
+    fi
+
+    if [[ -z "$new_name" ]]; then
+        echo "Error: Could not generate filename (no AI service available)" >&2
+        return 1
+    fi
+
+    # Clean the name
+    new_name=$(echo "$new_name" | tr -d '"' | tr ' ' '-' | tr -cd '[:alnum:]-' | tr '[:upper:]' '[:lower:]')
+
+    # Add extension
     local ext="${file##*.}"
     if [[ "$ext" != "$file" ]]; then
         new_name="${new_name}.${ext}"
     fi
 
-    echo "Suggested name: $new_name" >&2
+    echo "Generated name: $new_name" >&2
 
-    # Check if file already exists
+    # Rename the file
     if [[ -e "$new_name" ]]; then
-        echo "Target file already exists: $new_name" >&2
+        echo "File already exists: $new_name" >&2
         return 1
     fi
 
-    # Confirm rename unless auto mode
-    if [[ "$SKIP_CONFIRMATION" == "false" ]]; then
-        read -p "Rename '$file' to '$new_name'? (y/N): " -r
-        if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
-            echo "Skipped" >&2
-            return 0
-        fi
-    fi
-
-    # Perform rename
-    mv "$file" "$new_name" && {
-        echo "Renamed: $file -> $new_name" >&2
-    } || {
-        echo "Failed to rename: $file" >&2
-        return 1
-    }
+    mv "$file" "$new_name" && echo "Renamed: $file -> $new_name"
 }
 
-# Generate filename using AI
-generate_filename() {
-    local file="$1"
-
-    # This would call the actual AI service
-    # For now, return a placeholder
-    echo "renamed-${file##*/}" | sed 's/\.[^.]*$//'
-}
-
-# Main function
-main() {
-    parse_args "$@"
-
-    # Find matching files
-    local -a files
-    mapfile -t files < <(find_files "$PATTERN" || true)
-
-    if [[ ${#files[@]} -eq 0 ]]; then
-        exit 0
-    fi
-
-    # Process each file
-    for file in "${files[@]}"; do
-        process_file "$file" || true
-    done
-}
-
-# Run main function if not sourced
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    main "$@"
+# Main
+if [[ $# -eq 0 ]]; then
+    echo "Usage: $0 <file>"
+    exit 1
 fi
+
+# Load API keys from environment or config
+if [[ -f "$HOME/.config/smart-rename/config.yaml" ]] && command -v yq >/dev/null 2>&1; then
+    key=$(yq eval '.api.openai.key // ""' "$HOME/.config/smart-rename/config.yaml" 2>/dev/null)
+    [[ -n "$key" ]] && export OPENAI_API_KEY="$key"
+fi
+
+process_file "$1"
