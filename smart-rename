@@ -113,6 +113,12 @@ process_file() {
         return 1
     fi
 
+    # Skip backup files
+    if [[ "$file" == *.bak ]]; then
+        echo "Skipping backup file: $file" >&2
+        return 0
+    fi
+
     # Read file content based on type
     local extension="${file##*.}"
     extension=$(echo "$extension" | tr '[:upper:]' '[:lower:]')
