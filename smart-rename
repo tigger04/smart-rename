@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-VERSION="5.14.0"
+VERSION="5.15.0"
 SCRIPT_NAME="smart-rename"
 CONFIG_DIR="$HOME/.config/smart-rename"
 CONFIG_FILE="$CONFIG_DIR/config.yaml"
@@ -277,7 +277,8 @@ process_file() {
 
     # Confirm rename unless auto mode
     if [[ "$AUTO_RENAME" != "true" ]]; then
-        read -p -n 1 "Rename '$file' to '$new_name'? (y/N): " -r
+        read -p "Rename '$file' to '$new_name'? (y/N): " -n 1 -r
+        echo  # Add newline after single character input
         if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
             echo "Skipped"
             return 0
