@@ -42,32 +42,26 @@ brew install tigger04/tap/smart-rename
 ```
 
 ### Other platforms
-- Linux package managers on my TODO list, meantime see Dev install below
+- Linux package managers coming soon, meanwhile see the Dev install guide below
 
 ## Configuration
 
 The tool automatically detects available AI providers and uses the first available one. Configuration is loaded in this order:
 
 1. **Environment variables** (highest priority)
-2. **YAML config file**: `~/.config/smart-rename/config.yaml` (recommended)
-3. **Shell config file**: `~/.config/smart-rename/config`
-4. **Built-in defaults**
+   - `OPENAI_API_KEY`
+   - `CLAUDE_API_KEY`
 
-### First Run Setup
+2. **YAML config file**: `~/.config/smart-rename/config.yaml`
+   - The default config is copied here on first use, and should be intuitive to customize
 
-On first run, the tool automatically creates `~/.config/smart-rename/` and copies a default config file. You just need to add your API keys:
-
-```bash
-# Edit the auto-created config with your API keys
-nano ~/.config/smart-rename/config.yaml
-```
+3. **Built-in defaults**
 
 ### YAML Configuration Features
 
 - **Custom prompts**: Configure the AI prompt with placeholders
 - **API settings**: All providers and models in one place
 - **Abbreviations**: Clean YAML format for custom abbreviations
-- **Multi-line support**: Better for complex prompts
 
 Example YAML structure:
 ```yaml
@@ -82,55 +76,21 @@ abbreviations:
   myorg: "My Organization"
 ```
 
-### Shell Configuration
-
-You can also use shell config format:
-
-```bash
-# Edit the config file
-nano ~/.config/smart-rename/config
-```
-
-### Configuration Options
-
-```bash
-# ~/.config/smart-rename/config
-
-# API Keys (set at least one)
-export OPENAI_API_KEY="sk-..."
-export CLAUDE_API_KEY="sk-ant-..."
-# export OLLAMA_API_URL="http://localhost:11434"  # Optional: remote Ollama
-
-# Default provider (optional - auto-detects if not set)
-export DEFAULT_AI="openai"  # or "claude" or "ollama"
-
-# Model configurations
-openai_model="gpt-4o-mini"
-claude_model="claude-3-5-sonnet-20241022"
-ollama_model="mistral"
-
-# Base currency for receipts (default: EUR)
-base_currency="EUR"  # Can be USD, GBP, etc.
-
-# Custom abbreviations (these are defaults, customize as needed)
-declare -A abbreviations=(
-  ["svph"]="St. Vincent's Private Hospital"
-  ["svuh"]="St. Vincent's University Hospital"
-  ["nrh"]="National Rehabilitation Hospital"
-  ["mater"]="Mater Misericordiae University Hospital"
-  # Add your own custom abbreviations here
-)
-```
-
 ### Auto-Detection
 
 - If only one API key is provided, that provider becomes the default
 - If multiple keys are available, preference order: OpenAI → Claude → Ollama
 - If no API keys but Ollama is running locally, uses Ollama
+- If all are provided, the default can be set in `config.yaml`
 
 ## Usage
 
 ```bash
+# PATTERN
+smart-rename [OPTIONS] [REGEX]
+# -or-
+smart-rename -g [OPTIONS] [GLOB]
+
 # Process files matching pattern (interactive mode)
 smart-rename "receipt.*\.pdf"
 
@@ -138,7 +98,7 @@ smart-rename "receipt.*\.pdf"
 smart-rename -y invoice.pdf
 
 # Search recursively
-smart-rename -r "*.docx"
+smart-rename -r "\.docx$"
 
 # Use glob pattern instead of regex
 smart-rename -g "*.pdf"
@@ -148,7 +108,7 @@ smart-rename --claude document.pdf
 smart-rename --openai receipt.jpg
 ```
 
-## Options
+## CLI switches
 
 ### Search Options
 - `-r, --recursive`: Search files recursively
@@ -171,31 +131,25 @@ smart-rename --openai receipt.jpg
 
 ### Receipts/Invoices
 - Format: `YYYY-MM-DD-amount-description.ext`
-- Amount in base currency (configurable, default EUR)
-- Other currencies: `YYYY-MM-DD-CUR-amount-description.ext`
+- Amount in base currency (base currency configurable, default EUR)
+- Non-base currency: `YYYY-MM-DD-CUR-amount-description.ext` where CUR is the ISO currency code.
 
 ### Abbreviations (Configurable)
-The tool comes with default medical facility abbreviations which can be customized in the config file:
+The tool comes with a few example abbreviations, adjust to your own needs in `config.yaml`
 - svph = St. Vincent's Private Hospital
 - svuh = St. Vincent's University Hospital
 - nrh = National Rehabilitation Hospital
 - mater = Mater Misericordiae University Hospital
-
-Add your own abbreviations in `~/.config/smart-rename/config`
 
 ## Examples
 
 ```bash
 # Rename all PDF receipts in current directory
 smart-rename -g "receipt*.pdf"
+> 
 
 # Process all documents recursively with auto-rename
 smart-rename -r -y ".*\.(pdf|jpg|png)$"
-
-# Use custom base currency (USD instead of EUR)
-echo 'base_currency="USD"' >> ~/.config/smart-rename/config
-smart-rename receipt.pdf
-```
 
 ## Development Installation
 

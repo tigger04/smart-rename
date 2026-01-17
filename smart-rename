@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-VERSION="5.10.0"
+VERSION="5.11.0"
 SCRIPT_NAME="smart-rename"
 CONFIG_DIR="$HOME/.config/smart-rename"
 CONFIG_FILE="$CONFIG_DIR/config.yaml"
@@ -252,15 +252,32 @@ process_file() {
 
     echo "Generated name: $new_name" >&2
 
-    # Check if file exists
+    # Check if target file exists and create backup if needed
     if [[ -e "$new_name" ]]; then
-        echo "File already exists: $new_name" >&2
-        return 1
+        # Find next available backup number
+        local backup_base="${new_name}"
+        local backup_num=0
+        local backup_name="${backup_base}.bak"
+
+        # Check for existing backups (.bak, .1.bak, .2.bak, etc.)
+        if [[ -e "$backup_name" ]]; then
+            backup_num=1
+            while [[ -e "${backup_base}.${backup_num}.bak" ]]; do
+                ((backup_num++))
+            done
+            backup_name="${backup_base}.${backup_num}.bak"
+        fi
+
+        echo "Target file exists, creating backup: $new_name -> $backup_name" >&2
+        mv "$new_name" "$backup_name" || {
+            echo "Failed to create backup: $backup_name" >&2
+            return 1
+        }
     fi
 
     # Confirm rename unless auto mode
     if [[ "$AUTO_RENAME" != "true" ]]; then
-        read -p "Rename '$file' to '$new_name'? (y/N): " -r
+        read -p -n 1 "Rename '$file' to '$new_name'? (y/N): " -r
         if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
             echo "Skipped"
             return 0
@@ -389,14 +406,6 @@ for PATTERN in "${PATTERNS[@]}"; do
 
         # Process each file
         for file in "${files[@]}"; do
-            if [[ "$AUTO_RENAME" != "true" ]]; then
-                read -p "Process '$file'? (y/N): " -r
-                if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
-                    echo "Skipped: $file" >&2
-                    continue
-                fi
-            fi
-
             process_file "$file" || true
             echo "" >&2
         done
