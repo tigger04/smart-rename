@@ -56,11 +56,9 @@ api:
 # Prompt template (customize as needed)
 prompt:
   template: |
-    Suggest a filename. Reply with ONLY the filename, nothing else.
-    Rules: lowercase, hyphens, no extension.
-    For receipts/invoices: 2024-01-15-49.99-amazon-order or 2024-03-22-150.00-dentist-receipt
-    For other documents: project-proposal-acme-corp or user-manual-dishwasher
-    Document: {{CONTENT}}
+    What filename describes this? Reply with ONLY the filename.
+    Examples: 2024-01-15-49.99-amazon-order, 2024-03-22-150.00-dentist-receipt, warranty-guide-laptop, tax-return-2024
+    {{CONTENT}}
 EOF
     fi
 
@@ -100,7 +98,7 @@ EOF
 
     # Set default prompt if not configured
     if [[ -z "$PROMPT_TEMPLATE" ]]; then
-        PROMPT_TEMPLATE="Suggest a filename. Reply with ONLY the filename, nothing else. Rules: lowercase, hyphens, no extension. For receipts/invoices: 2024-01-15-49.99-amazon-order or 2024-03-22-150.00-dentist-receipt. For other documents: project-proposal-acme-corp or user-manual-dishwasher. Document: {{CONTENT}}"
+        PROMPT_TEMPLATE="What filename describes this? Reply with ONLY the filename. Examples: 2024-01-15-49.99-amazon-order, 2024-03-22-150.00-dentist-receipt, warranty-guide-laptop, tax-return-2024. {{CONTENT}}"
     fi
 }
 
