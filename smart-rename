@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-VERSION="5.11.0"
+VERSION="5.12.0"
 SCRIPT_NAME="smart-rename"
 CONFIG_DIR="$HOME/.config/smart-rename"
 CONFIG_FILE="$CONFIG_DIR/config.yaml"
@@ -305,9 +305,9 @@ OPTIONS:
 
 EXAMPLES:
   $SCRIPT_NAME 'scan.*\.pdf'        # Find files matching regex
-  $SCRIPT_NAME -g '*.txt'            # Find files matching glob
-  $SCRIPT_NAME -r 'invoice'          # Recursive search
-  $SCRIPT_NAME -y document.pdf       # Specific file, auto-rename
+  $SCRIPT_NAME -g '*.txt'           # Find files matching glob
+  $SCRIPT_NAME -r 'invoice'         # Recursive search (regex)
+  $SCRIPT_NAME -y -g document.pdf   # Specific file, auto-rename
 
 EOF
 }
