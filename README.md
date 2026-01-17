@@ -36,10 +36,13 @@ AI-powered file renaming tool that generates intelligent, descriptive filenames 
 
 ## Quick Start
 
-```bash
-brew tap tigger04/tap
-brew install smart-rename
+### MacOS
+```bash sh
+brew install tigger04/tap/smart-rename
 ```
+
+### Other platforms
+- Linux package managers on my TODO list, meantime see Dev install below
 
 ## Configuration
 
@@ -47,19 +50,15 @@ The tool automatically detects available AI providers and uses the first availab
 
 1. **Environment variables** (highest priority)
 2. **YAML config file**: `~/.config/smart-rename/config.yaml` (recommended)
-3. **Shell config file**: `~/.config/smart-rename/config` (backwards compatibility)
+3. **Shell config file**: `~/.config/smart-rename/config`
 4. **Built-in defaults**
 
-### Quick Setup (YAML - Recommended)
+### First Run Setup
+
+On first run, the tool automatically creates `~/.config/smart-rename/` and copies a default config file. You just need to add your API keys:
 
 ```bash
-# Create config directory
-mkdir -p ~/.config/smart-rename
-
-# Copy example YAML config
-cp config.example.yaml ~/.config/smart-rename/config.yaml
-
-# Edit with your API keys and customize prompts
+# Edit the auto-created config with your API keys
 nano ~/.config/smart-rename/config.yaml
 ```
 
@@ -83,15 +82,12 @@ abbreviations:
   myorg: "My Organization"
 ```
 
-### Legacy Shell Configuration
+### Shell Configuration
 
-For backwards compatibility, you can still use shell config:
+You can also use shell config format:
 
 ```bash
-# Copy example config
-cp config.example ~/.config/smart-rename/config
-
-# Edit with your API keys
+# Edit the config file
 nano ~/.config/smart-rename/config
 ```
 
