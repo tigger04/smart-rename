@@ -27,7 +27,7 @@ If provided, smart-rename will find files matching the pattern and rename them.
 If no pattern is provided, interactive mode is started.
 
 Pattern types:
-  - By default, patterns are treated as fd command regex
+  - By default, patterns are treated as Rust regex (Perl-style)
   - Use --glob to treat pattern as shell glob pattern
 
 OPTIONS
