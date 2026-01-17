@@ -33,6 +33,8 @@ help:
 test:
 	@echo "Running decimal normalisation tests..."
 	@./test/test_decimal_normalisation.sh
+	@echo "Running Makefile sed pattern tests..."
+	@./test/test_makefile_sed.sh
 	@echo "All tests passed!"
 
 # Development install (requires sudo)
@@ -119,7 +121,7 @@ formula:
 	CURRENT_SHA=$$(shasum -a 256 $(SCRIPT) | awk '{print $$1}'); \
 	echo "  Version: $$CURRENT_VERSION"; \
 	echo "  SHA256:  $$CURRENT_SHA"; \
-	sed -i.bak "s|url \"https://raw.githubusercontent.com/tigger04/smart-rename/v[^\"]*|url \"https://raw.githubusercontent.com/tigger04/smart-rename/v$$CURRENT_VERSION|" "$(FORMULA_PATH)"; \
+	sed -i.bak "s|url \"https://raw.githubusercontent.com/tigger04/smart-rename/v[^/]*/smart-rename\"|url \"https://raw.githubusercontent.com/tigger04/smart-rename/v$$CURRENT_VERSION/smart-rename\"|" "$(FORMULA_PATH)"; \
 	sed -i.bak "s|sha256 \"[^\"]*\"|sha256 \"$$CURRENT_SHA\"|" "$(FORMULA_PATH)"; \
 	sed -i.bak "s|version \"[^\"]*\"|version \"$$CURRENT_VERSION\"|" "$(FORMULA_PATH)" && rm -f "$(FORMULA_PATH).bak"; \
 	cd "$$(dirname "$(FORMULA_PATH)")" && \
