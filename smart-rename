@@ -132,7 +132,7 @@ process_file() {
                 echo "  $pdf_error" >&2
                 return 1
             fi
-            content=$(pdftotext "$file" - 2>/dev/null | head -c "$MAX_CONTENT_LENGTH")
+            content=$(pdftotext "$file" - 2>/dev/null | head -c "$MAX_CONTENT_LENGTH" || true)
             ;;
         jpg|jpeg|png|gif|bmp|tiff|webp)
             # For images, we'd need vision API support
