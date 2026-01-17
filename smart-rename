@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-VERSION="5.2.0"
+VERSION="5.3.0"
 SCRIPT_NAME="smart-rename"
 CONFIG_DIR="$HOME/.config/smart-rename"
 CONFIG_FILE="$CONFIG_DIR/config.yaml"
