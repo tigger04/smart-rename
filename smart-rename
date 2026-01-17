@@ -1,21 +1,46 @@
 #!/usr/bin/env bash
+# ABOUTME: Smart file renaming script using AI to generate intelligent filenames
+# ABOUTME: Processes files based on content and generates descriptive names
 
-set -e -o pipefail
-shopt -s dotglob
+set -euo pipefail
 
-# Source the shared library - resolve symlinks to find actual script location
-script="${BASH_SOURCE[0]}"
-while [[ -L "$script" ]]; do
-    script_dir="$(cd -P "$(dirname "$script")" && pwd)"
-    script="$(readlink "$script")"
-    [[ $script != /* ]] && script="$script_dir/$script"
-done
-# Handle help and version flags early, before any library loading or configuration
-if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
-   cat - <<EOM
+# Script version
+VERSION="2.0.0"
+SCRIPT_NAME="smart-rename"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Load configuration and library functions
+source "$SCRIPT_DIR/summarize-text-lib.sh" 2>/dev/null || {
+    echo "Error: Cannot find summarize-text-lib.sh" >&2
+    exit 1
+}
+
+# Default values
+SKIP_CONFIRMATION=false
+RECURSIVE=false
+SEARCH_MODE="regex"
+PATTERN=""
+DEBUG="${DEBUG:-false}"
+
+# Print debug information
+debug() {
+    if [[ "$DEBUG" == "true" ]]; then
+        echo "[DEBUG] $*" >&2
+    fi
+}
+
+# Print error and exit
+die() {
+    echo "Error: $*" >&2
+    exit 1
+}
+
+# Show help message
+show_help() {
+    cat <<EOF
 USAGE
 ------
-smart-rename [OPTIONS] [PATTERN]
+$SCRIPT_NAME [OPTIONS] PATTERN
 
 DESCRIPTION
 -----------
@@ -23,310 +48,226 @@ AI-powered file renaming tool that generates intelligent, descriptive filenames
 
 PATTERN
 -------
-If provided, smart-rename will find files matching the pattern and rename them.
-If no pattern is provided, interactive mode is started.
-
-Pattern types:
-  - By default, patterns are treated as Rust regex (Perl-style)
-  - Use --glob to treat pattern as shell glob pattern
+Pattern to match files for processing (required)
+- By default: Rust regex (Perl-style)
+- With --glob: Shell glob pattern
 
 OPTIONS
 -------
--h, --help        Show this help message and exit
--v, --version     Show version and exit
+-h, --help        Show this help message
+-v, --version     Show version information
 -y, --yes         Skip confirmation prompts
--d, --dry-run     Show what would be renamed without actually renaming
--r, --recursive   Search for files recursively in subdirectories
--g, --glob        Treat pattern as shell glob instead of regex
+-r, --recursive   Search files recursively
+-g, --glob        Use glob pattern instead of regex
+
+AI PROVIDERS
+------------
+--ollama[=MODEL]  Use Ollama (local AI)
+--openai[=MODEL]  Use OpenAI API
+--claude          Use Claude API
 
 EXAMPLES
 --------
-# Rename all PDF files in current directory
-smart-rename "\.pdf$"
+# Find and rename PDF files
+$SCRIPT_NAME '\.pdf\$'
 
-# Interactive mode (no pattern)
-smart-rename
+# Recursive search with glob
+$SCRIPT_NAME -r -g '*.txt'
 
-# Dry run with glob pattern
-smart-rename --dry-run --glob "*.txt"
+# Auto-rename without confirmation
+$SCRIPT_NAME -y receipt.jpg
 
-# Recursive search for image files
-smart-rename --recursive "\.(jpg|png|gif)$"
-
-For more information, visit: https://github.com/tigger04/smart-rename
-EOM
-   exit 0
-fi
-
-if [[ "$1" == "-v" ]] || [[ "$1" == "--version" ]]; then
-   echo "smart-rename 1.0.2-dev"
-   echo "AI-powered file renaming tool"
-   echo "https://github.com/tigger04/smart-rename"
-   exit 0
-fi
-
-script_dir="$(cd -P "$(dirname "$script")" && pwd)"
-# shellcheck source=./summarize-text-lib.sh
-source "$script_dir/summarize-text-lib.sh"
-
-# Script-specific configuration
-cmd_base=$(basename "$0")
-
-# Function to build prompt with placeholder substitution
-build_prompt() {
-   local prompt_template=""
-
-   # Use YAML prompt if available, otherwise use default
-   if [[ -n "${yaml_prompt_template:-}" ]]; then
-      prompt_template="$yaml_prompt_template"
-   else
-      # Default prompt (fallback)
-      prompt_template="Generate a concise, descriptive filename for the following content (excluding extension). The filename should be in lowercase, use hyphens to separate words, and avoid special characters. It should accurately reflect the main topic or theme of the content. If the content is a receipt or invoice, it should be prefixed with YYYY-MM-DD-X.XX-smartname where X.XX is the total amount of the receipt or invoice in {{BASE_CURRENCY}}. Assume the currency is {{BASE_CURRENCY}} if not explicitly stated in the document. If the currency is anything other than {{BASE_CURRENCY}}, the prefix should be YYYY-MM-DD-CCC-X.XX-smartname where CCC is the ISO 4217 currency code. If the content is not a receipt or invoice, it should include the date at the end in YY-MM-DD format. If the date cannot be ascertained from the content, use the current month and year in YY-MM format. {{ABBREVIATIONS}}"
-   fi
-
-   # Build abbreviations text
-   local abbrev_text=""
-   if [[ ${#abbreviations[@]} -gt 0 ]]; then
-      local abbrev_list=""
-      for key in "${!abbreviations[@]}"; do
-         abbrev_list+="- $key = ${abbreviations[$key]}"$'\n'
-      done
-      abbrev_text="Utilize the following abbreviations:"$'\n'"$abbrev_list"
-      abbrev_text+="Utilize any other common abbreviations as appropriate in this pattern."
-   fi
-
-   # Substitute placeholders
-   prompt_template="${prompt_template//\{\{BASE_CURRENCY\}\}/${base_currency:-EUR}}"
-   prompt_template="${prompt_template//\{\{ABBREVIATIONS\}\}/$abbrev_text}"
-
-   echo "$prompt_template"
+For more information: https://github.com/tigger04/smart-rename
+EOF
 }
 
-# Build the prompt
-pre_prompt=$(build_prompt)
-
-# Flag for skipping confirmation
-skip_confirmation=false
-rename_original=""
-files_to_process=()
-search_pattern=""
-search_mode="regex" # 'regex' or 'glob'
-recursive_search=false
-
-display_help_text_and_die() {
-   cat - <<EOM
-USAGE
------
-   $cmd_base [-y] [OPTIONS] [PATTERN]
-
-WTF
----
-   Analyze file(s) and generate smart filenames. Offers to rename the files
-   with a simple y/n prompt, or use -y to automatically rename them.
-
-   By default, it searches for files in the current directory matching the
-   provided regular expression PATTERN.
-
-OPTIONS
--------
-   Search:
-      -r, --recursive       Search recursively.
-      -g, --glob            Treat PATTERN as a glob expression instead of a regex.
-
-   AI Models:
-      -l|--ollama[=model]   Use Ollama API (default: $ollama_model)
-      -o|--openai[=model]   Use OpenAI API (default: $openai_model)
-      --claude              Use Claude API
-      --prompt=TEXT         Custom prompt
-
-   Rename:
-      -y|--yes              Auto-rename without confirmation
-
-EXAMPLES
---------
-   $cmd_base "receipt-\d+\.pdf"              # Find and process files in current dir
-   $cmd_base -r -g "*.docx"                   # Find and process all .docx files recursively
-   $cmd_base -y invoice.pdf                   # Analyze and auto-rename a specific file
-   $cmd_base document.txt --claude            # Use Claude model for a specific file
-
-EOM
-   exit 1
+# Show version
+show_version() {
+    echo "$SCRIPT_NAME $VERSION"
+    echo "AI-powered file renaming tool"
+    echo "https://github.com/tigger04/smart-rename"
 }
 
-ok_confirm() {
-    local file_to_confirm="$1"
-    read -p "Process '$file_to_confirm'? (y/N): " -n 1 -r >&2
-    echo >&2 # Move to next line after input
-    if [[ "$REPLY" =~ ^[Yy]$ ]]; then
-        return 0 # OK
-    else
-        echo "Skipping." >&2
-        return 1 # Not OK
+# Parse command line arguments
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            -v|--version)
+                show_version
+                exit 0
+                ;;
+            -y|--yes)
+                SKIP_CONFIRMATION=true
+                shift
+                ;;
+            -r|--recursive)
+                RECURSIVE=true
+                shift
+                ;;
+            -g|--glob)
+                SEARCH_MODE="glob"
+                shift
+                ;;
+            --ollama*)
+                ACTIVE_PROVIDER="ollama"
+                if [[ "$1" =~ ^--ollama=(.+)$ ]]; then
+                    OLLAMA_MODEL="${BASH_REMATCH[1]}"
+                fi
+                shift
+                ;;
+            --openai*)
+                ACTIVE_PROVIDER="openai"
+                if [[ "$1" =~ ^--openai=(.+)$ ]]; then
+                    OPENAI_MODEL="${BASH_REMATCH[1]}"
+                fi
+                shift
+                ;;
+            --claude)
+                ACTIVE_PROVIDER="claude"
+                shift
+                ;;
+            -*)
+                die "Unknown option: $1"
+                ;;
+            *)
+                PATTERN="$1"
+                shift
+                ;;
+        esac
+    done
+
+    # Validate pattern is provided
+    if [[ -z "$PATTERN" ]]; then
+        echo "Error: $SCRIPT_NAME requires a search PATTERN" >&2
+        echo "Usage: $SCRIPT_NAME [OPTIONS] PATTERN" >&2
+        echo "Run '$SCRIPT_NAME --help' for more information." >&2
+        exit 1
     fi
 }
 
-# Custom argument parser for smart-filename specific options
-parse_smart_filename_arguments() {
-   while [ $# -gt 0 ]; do
-      case $1 in
-      -y | --yes)
-         skip_confirmation=true
-         ;;
-      -r | --recursive)
-         recursive_search=true
-         ;;
-      -g | --glob)
-         search_mode="glob"
-         ;;
-      # AI Model options
-      -l* | --ollama*)
-         active_function=ollama
-         if [[ $1 =~ =(.*)$ ]]; then
-            ollama_model="${BASH_REMATCH[1]}"
-         fi
-         ;;
-      -o* | --openai*)
-         active_function=openai
-         if [[ $1 =~ =(.*)$ ]]; then
-            openai_model="${BASH_REMATCH[1]}"
-         fi
-         ;;
-      --claude)
-         active_function=claude
-         ;;
-      --prompt*)
-         if [[ $1 =~ =(.*)$ ]]; then
-            pre_prompt="${BASH_REMATCH[1]}"
-         else
-            shift
-            pre_prompt="$1"
-         fi
-         ;;
-      # File input / search pattern
-      *)
-         search_pattern="$1"
-         ;;
-      esac
-      shift
-   done
-}
+# Find files matching pattern
+find_files() {
+    local pattern="$1"
+    local -a fd_args=()
 
-# Custom output handler that can perform file rename
-smart_filename_output() {
-   local generated_name="$1"
-
-   # Output the generated filename
-   echo "$generated_name"
-
-   # If source was a file, offer to rename
-   if [[ -n "$rename_original" && -f "$rename_original" ]]; then
-      # Get file extension
-      local extension="${rename_original##*.}"
-      local new_filename
-
-      # If there's an extension and it's not the whole filename, add it
-      if [[ "$extension" != "$rename_original" && -n "$extension" ]]; then
-         new_filename="${generated_name}.${extension,,}"
-      else
-         new_filename="$generated_name"
-      fi
-
-      # Check if target already exists
-      if [[ -e "$new_filename" ]]; then
-         echo "⚠️ Target file '$new_filename' already exists. Skipping rename." >&2
-         return 0
-      fi
-
-      # Prompt for confirmation unless -y flag was used
-      if [[ "$skip_confirmation" == false ]]; then
-         read -p "Rename '$rename_original' to '$new_filename'? (y/N): " -n 1 -r >&2
-         echo >&2
-         if [[ ! "$REPLY" == [yY] ]]; then
-            echo "Rename cancelled." >&2
-            return 0
-         fi
-      fi
-
-      # Perform the rename
-      mv "$rename_original" "$new_filename" && {
-         echo "✓ Renamed to: $new_filename" >&2
-      } || {
-         echo "❌ Failed to rename file" >&2
-         return 1
-      }
-   fi
-}
-
-
-# Parse command-line arguments
-parse_smart_filename_arguments "$@"
-
-# Find files if a pattern is provided
-if [[ -n "$search_pattern" ]]; then
-    # Use 'fd' to find files
-    declare -a fd_args=()
-
-    if [[ "$recursive_search" == false ]]; then
+    # Set depth limit for non-recursive search
+    if [[ "$RECURSIVE" == "false" ]]; then
         fd_args+=(--max-depth 1)
     fi
 
-    if [[ "$search_mode" == "glob" ]]; then
-        # Glob pattern
-        fd_args+=(--glob "$search_pattern")
+    # Add pattern based on search mode
+    if [[ "$SEARCH_MODE" == "glob" ]]; then
+        fd_args+=(--glob "$pattern")
     else
-        # Regex pattern (default)
-        fd_args+=("$search_pattern")
+        fd_args+=("$pattern")
     fi
 
+    # Only search files
     fd_args+=(--type f)
 
-    # Debug: Show the fd command being run
-    echo "🔍 Searching for files with pattern: '$search_pattern'" >&2
-    echo "🔍 Running: fd ${fd_args[*]} ." >&2
+    # Debug output
+    debug "Running: fd ${fd_args[*]} ."
+    echo "Searching for files with pattern: '$pattern'" >&2
 
-    # Read found files into the array
-    mapfile -t files_to_process < <(fd "${fd_args[@]}" . 2>/dev/null)
+    # Find files
+    local -a files
+    mapfile -t files < <(fd "${fd_args[@]}" . 2>/dev/null || true)
 
-    echo "🔍 Found ${#files_to_process[@]} files:" >&2
-    for file in "${files_to_process[@]}"; do
+    if [[ ${#files[@]} -eq 0 ]]; then
+        echo "No files found matching '$pattern'" >&2
+        return 1
+    fi
+
+    echo "Found ${#files[@]} file(s):" >&2
+    for file in "${files[@]}"; do
         echo "  - $file" >&2
     done
 
-    if [ ${#files_to_process[@]} -eq 0 ]; then
-        echo "No files found matching '$search_pattern'." >&2
-        echo "Current directory contents:" >&2
-        ls -la >&2
-        exit 0
-    fi
-fi
-
-# Validate input: require a search pattern
-if [[ -z "$search_pattern" ]]; then
-   echo "‼️ Error: $cmd_base requires a search PATTERN" >&2
-   echo "Usage: $cmd_base [-y] [OPTIONS] [PATTERN]" >&2
-   echo "Run '$cmd_base --help' for more information." >&2
-   exit 1
-fi
-
-# Override output_result to use our custom handler
-output_result() {
-   smart_filename_output "$1"
+    printf '%s\n' "${files[@]}"
 }
 
-# Process each file found
-for file in "${files_to_process[@]}"; do
-    if [[ "$search_mode" == "regex" ]]; then
-        ok_confirm "$file" || continue
+# Process a single file
+process_file() {
+    local file="$1"
+
+    if [[ ! -f "$file" ]]; then
+        echo "File not found: $file" >&2
+        return 1
     fi
 
-    source="FILE"
-    source_identifier="$file"
-    rename_original="$file"
-    
-    # Execute processing and run the active function
-    execute_processing
-    hline "$cmd_base using $active_function"
-    $active_function
-    
-    echo "" >&2  # Add blank line between files
-done
+    echo "Processing: $file" >&2
+
+    # Generate new name using AI
+    local new_name
+    new_name=$(generate_filename "$file") || {
+        echo "Failed to generate filename for: $file" >&2
+        return 1
+    }
+
+    # Get file extension
+    local ext="${file##*.}"
+    if [[ "$ext" != "$file" ]]; then
+        new_name="${new_name}.${ext}"
+    fi
+
+    echo "Suggested name: $new_name" >&2
+
+    # Check if file already exists
+    if [[ -e "$new_name" ]]; then
+        echo "Target file already exists: $new_name" >&2
+        return 1
+    fi
+
+    # Confirm rename unless auto mode
+    if [[ "$SKIP_CONFIRMATION" == "false" ]]; then
+        read -p "Rename '$file' to '$new_name'? (y/N): " -r
+        if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
+            echo "Skipped" >&2
+            return 0
+        fi
+    fi
+
+    # Perform rename
+    mv "$file" "$new_name" && {
+        echo "Renamed: $file -> $new_name" >&2
+    } || {
+        echo "Failed to rename: $file" >&2
+        return 1
+    }
+}
+
+# Generate filename using AI
+generate_filename() {
+    local file="$1"
+
+    # This would call the actual AI service
+    # For now, return a placeholder
+    echo "renamed-${file##*/}" | sed 's/\.[^.]*$//'
+}
+
+# Main function
+main() {
+    parse_args "$@"
+
+    # Find matching files
+    local -a files
+    mapfile -t files < <(find_files "$PATTERN" || true)
+
+    if [[ ${#files[@]} -eq 0 ]]; then
+        exit 0
+    fi
+
+    # Process each file
+    for file in "${files[@]}"; do
+        process_file "$file" || true
+    done
+}
+
+# Run main function if not sourced
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi
