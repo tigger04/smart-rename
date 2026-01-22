@@ -136,6 +136,7 @@ The default local model is **Qwen 2.5 7B** (`qwen2.5:7b`). This is the smallest 
 **Performance notes:**
 - First run downloads the model (~4.7GB) - this only happens once
 - On Apple Silicon with 16GB+, responses typically take 2-5 seconds
+  - Personally I find this to be about the same amount of time it takes for an API roundtrip to Anthropic or OpenAI, so it's pretty good if I may say so myself!
 - On systems with less RAM, you may experience slower responses as the model swaps to disk
 - Your mileage may vary depending on hardware
 
