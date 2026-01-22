@@ -16,8 +16,8 @@ So for example:
 
 ``` sh
 $ smart-rename e134-a1cf-4b4b-af65-ccf83c5270cb.pdf
-Using OpenAI (gpt-4o-mini)...
-✓ Got response from OpenAI
+Trying Ollama (qwen2.5:3b)...
+✓ Got response from Ollama
 Generated name: 2026-01-15-54.97-three-bill.pdf
 📎 e134-a1cf-4b4b-af65-ccf83c5270cb.pdf →
 🆕 2026-01-15-54.97-three-bill.pdf(y/N):
