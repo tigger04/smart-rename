@@ -57,18 +57,11 @@ load_config() {
 
     # Set default prompt if not configured
     if [[ -z "$PROMPT_TEMPLATE" ]]; then
-        PROMPT_TEMPLATE="Read this document and generate a filename based on its actual content.
-Output ONLY the filename, nothing else.
+        PROMPT_TEMPLATE="What is a good filename for this document? Output only the filename.
 
-DOCUMENT CONTENT:
-{{CONTENT}}
+For invoices use: YYYY-MM-DD-amount-vendor (example: 2024-03-15-54.97-three-mobile)
 
-FILENAME FORMAT:
-- Bills/invoices/receipts: YYYY-MM-DD-amount.cc-vendor-name
-- Other documents: brief-description
-
-Use the actual date, amount, and vendor from the document above.
-FILENAME:"
+{{CONTENT}}"
     fi
 
     # Set default Ollama model if not configured
