@@ -37,7 +37,7 @@ api:
     - claude
 
   ollama:
-    model: mistral
+    model: llama3.2:3b
     timeout: 30
     # url: http://localhost:11434  # Uncomment to use remote Ollama
 
