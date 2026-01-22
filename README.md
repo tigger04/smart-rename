@@ -125,13 +125,23 @@ abbreviations:
 
 ### Local AI with Ollama
 
-The default local model is **Qwen 2.5 7B**, chosen for:
-- Excellent instruction following and document comprehension
-- Reliable structured output for filename generation
-- Runs well on 8GB+ RAM (Apple Silicon optimised)
-- Good balance of speed and quality
+The default local model is **Qwen 2.5 7B** (`qwen2.5:7b`). This is the smallest model we found that reliably follows the filename format instructions - smaller 3B models tend to ignore the date-amount-vendor structure or produce inconsistent results.
 
-The model is automatically pulled on first use. To use a different model, set `api.ollama.model` in your config.
+**System requirements:**
+- **Minimum**: 8GB RAM (model will run but may be slow)
+- **Recommended**: 16GB RAM for responsive performance
+- **Apple Silicon**: Runs well on M1/M2/M3 Macs with unified memory
+- **Disk**: ~4.7GB for the model download
+
+**Performance notes:**
+- First run downloads the model (~4.7GB) - this only happens once
+- On Apple Silicon with 16GB+, responses typically take 2-5 seconds
+- On systems with less RAM, you may experience slower responses as the model swaps to disk
+- Your mileage may vary depending on hardware
+
+**Alternative**: If local performance is too slow, consider using the OpenAI or Claude APIs instead - set `OPENAI_API_KEY` or `CLAUDE_API_KEY` environment variable.
+
+The model is automatically pulled on first use. To use a different model, create a config file at `~/.config/smart-rename/config.yaml` and set `api.ollama.model`.
 
 **Optional: Custom Modelfile**
 
