@@ -16,7 +16,7 @@ So for example:
 
 ``` sh
 $ smart-rename e134-a1cf-4b4b-af65-ccf83c5270cb.pdf
-Trying Ollama (llama3.2:3b)...
+Trying Ollama (qwen2.5:7b)...
 ✓ Got response from Ollama
 Generated name: 2026-01-15-54.97-three-bill.pdf
 📎 e134-a1cf-4b4b-af65-ccf83c5270cb.pdf →
@@ -124,10 +124,10 @@ abbreviations:
 
 ### Local AI with Ollama
 
-The default local model is **Llama 3.2 3B**, chosen for:
-- Superior instruction following (Meta specifically optimised for this)
-- Better at structured output ("output only X, nothing else" tasks)
-- Runs well on 8GB RAM (Apple Silicon optimised)
+The default local model is **Qwen 2.5 7B**, chosen for:
+- Excellent instruction following and document comprehension
+- Reliable structured output for filename generation
+- Runs well on 8GB+ RAM (Apple Silicon optimised)
 - Good balance of speed and quality
 
 The model is automatically pulled on first use. To use a different model, set `api.ollama.model` in your config.
@@ -139,7 +139,7 @@ For optimized local processing, create a custom model with tuned parameters:
 ```bash
 # Create ~/.ollama/modelfiles/smart-rename.Modelfile
 cat > ~/.ollama/modelfiles/smart-rename.Modelfile << 'EOF'
-FROM llama3.2:3b
+FROM qwen2.5:7b
 
 SYSTEM """You generate concise, descriptive filenames.
 Rules:

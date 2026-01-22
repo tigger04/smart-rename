@@ -9,11 +9,11 @@
 
 # Local AI Model Selection
 
-The default local model is **Llama 3.2 3B** (`llama3.2:3b`), chosen for:
+The default local model is **Qwen 2.5 7B** (`qwen2.5:7b`), chosen for:
 
-1. **Superior instruction following**: Meta specifically optimised this model to follow constraints
-2. **Structured output reliability**: Better at "output only X, nothing else" tasks
-3. **Resource efficiency**: Same 3B parameter size, runs well on 8GB RAM (Apple Silicon optimised)
+1. **Document comprehension**: Actually reads and understands document content
+2. **Structured output reliability**: Follows format instructions accurately
+3. **Resource efficiency**: Runs well on 8GB+ RAM (Apple Silicon optimised)
 4. **Speed/quality balance**: Fast enough for interactive use, accurate enough for production
 
 The model is auto-pulled on first use via Ollama. Users can override this in their config file.

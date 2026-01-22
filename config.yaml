@@ -37,7 +37,7 @@ api:
     - claude
 
   ollama:
-    model: llama3.2:3b
+    model: qwen2.5:7b
     timeout: 30
     # url: http://localhost:11434  # Uncomment to use remote Ollama
 
