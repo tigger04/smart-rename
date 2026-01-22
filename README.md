@@ -2,6 +2,37 @@
 
 AI-powered file renaming tool that generates intelligent, descriptive filenames based on file content.
 
+## Why bother?
+
+Example: I download my mobile phone bill from the phone company. I get a PDF document with the cryptically named: `e134-a1cf-4b4b-af65-ccf83c5270cb.pdf`
+
+Open it, sure, I can see what it is. But how am I supposed to file that away? No sooner have I closed the file, it meaningless gibberish as far as my filesystem is concerned. And if you like to file things away as I do, it adds unnecessary manual labour in having to thoughtfully rename each file that frankly I could do without.
+
+I have two rules of thumb when naming files:
+- if it's a bill or invoice, ISO-DATE, Amount, description, in that order. ISO date is nice an unambiguous, no EU/US date mix-ups, and it sorts alphanumerically! Everyone's a winner
+- if it's anything else, a very brief description, with *maybe* year and month tagged on to the end.
+
+So for example:
+
+``` sh
+$ smart-rename e134-a1cf-4b4b-af65-ccf83c5270cb.pdf
+Using OpenAI (gpt-4o-mini)...
+✓ Got response from OpenAI
+Generated name: 2026-01-15-54.97-three-bill.pdf
+📎 e134-a1cf-4b4b-af65-ccf83c5270cb.pdf →
+🆕 2026-01-15-54.97-three-bill.pdf(y/N):
+```
+
+That looks satisfactory to me, so the file will now be called `2026-01-15-54.97-three-bill.pdf`
+
+*This is just one example, and leans into my own preference for naming scheme. You may configure the prompt, the format, to whatever system suits your own taste.*
+
+## How does it work?
+
+- It looks inside the file, and feeds it into an LLM.
+- WAIT! I see alarm bells ringing for many of you. The DEFAULT is to use a LOCAL and LIGHTWEIGHT LLM that runs on your computer. No API tokens, no sending your data to Anthropic or OpenAI. That is how this thing works by default.
+- You CAN if you choose plug it in to Anthropic or OpenAI if you want to use their models. Entirely up to you.
+
 ## Features
 
 - Analyze file content and generate smart filenames
