@@ -85,16 +85,17 @@ The following are installed automatically via Homebrew:
 
 ## Configuration
 
-The tool automatically detects available AI providers and uses the first available one. Configuration is loaded in this order:
+The tool works out of the box with sensible defaults. Configuration is optional and loaded in this order:
 
 1. **Environment variables** (highest priority)
    - `OPENAI_API_KEY`
    - `CLAUDE_API_KEY`
 
-2. **YAML config file**: `~/.config/smart-rename/config.yaml`
-   - The default config is copied here on first use, and should be intuitive to customize
+2. **YAML config file** (optional): `~/.config/smart-rename/config.yaml`
+   - Only used if you create it - no config is auto-generated
+   - See `config.yaml` in this repo for an example
 
-3. **Built-in defaults**
+3. **Built-in defaults** (used if no config file exists)
 
 ### YAML Configuration Features
 
