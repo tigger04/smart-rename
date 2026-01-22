@@ -56,9 +56,28 @@ api:
 # Prompt template (customize as needed)
 prompt:
   template: |
-    What filename describes this? Reply with ONLY the filename.
-    Examples: 2024-01-15-49.99-amazon-order, 2024-03-22-150.00-dentist-receipt, warranty-guide-laptop, tax-return-2024
+    Generate a filename. Output ONLY the filename, no explanation.
+
+    RULES FOR BILLS/INVOICES/RECEIPTS:
+    - Format: YYYY-MM-DD-amount.cc-description
+    - Date MUST come first in ISO format
+    - Amount with exactly 2 decimal places (e.g., 49.99 or 100.00)
+    - Description last, lowercase, hyphens between words
+
+    RULES FOR OTHER DOCUMENTS:
+    - Format: description-keywords
+    - Lowercase, hyphens between words
+
+    EXAMPLES:
+    - 2024-01-15-49.99-amazon-order
+    - 2024-03-22-150.00-dentist-receipt
+    - warranty-guide-laptop
+    - tax-return-2024
+
+    DOCUMENT:
     {{CONTENT}}
+
+    FILENAME:
 EOF
     fi
 
@@ -98,7 +117,28 @@ EOF
 
     # Set default prompt if not configured
     if [[ -z "$PROMPT_TEMPLATE" ]]; then
-        PROMPT_TEMPLATE="What filename describes this? Reply with ONLY the filename. Examples: 2024-01-15-49.99-amazon-order, 2024-03-22-150.00-dentist-receipt, warranty-guide-laptop, tax-return-2024. {{CONTENT}}"
+        PROMPT_TEMPLATE="Generate a filename. Output ONLY the filename, no explanation.
+
+RULES FOR BILLS/INVOICES/RECEIPTS:
+- Format: YYYY-MM-DD-amount.cc-description
+- Date MUST come first in ISO format
+- Amount with exactly 2 decimal places (e.g., 49.99 or 100.00)
+- Description last, lowercase, hyphens between words
+
+RULES FOR OTHER DOCUMENTS:
+- Format: description-keywords
+- Lowercase, hyphens between words
+
+EXAMPLES:
+- 2024-01-15-49.99-amazon-order
+- 2024-03-22-150.00-dentist-receipt
+- warranty-guide-laptop
+- tax-return-2024
+
+DOCUMENT:
+{{CONTENT}}
+
+FILENAME:"
     fi
 
     # Set default Ollama model if not configured
