@@ -2,7 +2,7 @@
 
 pkgs.stdenv.mkDerivation rec {
   pname = "smart-rename";
-  version = "5.21.16";
+  version = "5.22.0";
 
   src = ./.;
 

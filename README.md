@@ -93,7 +93,7 @@ environment.systemPackages = with pkgs; [
   (pkgs.callPackage (pkgs.fetchFromGitHub {
     owner = "tigger04";
     repo = "smart-rename";
-    rev = "v5.21.16";  # Use latest version
+    rev = "v5.22.0";  # Use latest version
     sha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";  # Update with actual hash
   }) {})
 ];
