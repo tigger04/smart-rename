@@ -35,6 +35,8 @@ test:
 	@./test/test_decimal_normalisation.sh
 	@echo "Running Makefile sed pattern tests..."
 	@./test/test_makefile_sed.sh
+	@echo "Running Nix packaging tests..."
+	@./test/test_nix_build.sh
 	@echo "All tests passed!"
 
 # Development install (requires sudo)

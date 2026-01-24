@@ -80,8 +80,27 @@ The following are installed automatically via Homebrew:
 - `jq` - JSON parser
 - `poppler` - PDF text extraction (provides `pdftotext`)
 
-### Other platforms
-- Linux package managers coming soon, meanwhile see the Dev install guide below
+### NixOS/Nix
+```bash
+# Using flakes (recommended)
+nix run github:tigger04/smart-rename
+
+# Or install permanently
+nix profile install github:tigger04/smart-rename
+
+# Or add to your NixOS configuration.nix
+environment.systemPackages = with pkgs; [
+  (pkgs.callPackage (pkgs.fetchFromGitHub {
+    owner = "tigger04";
+    repo = "smart-rename";
+    rev = "v5.21.16";  # Use latest version
+    sha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";  # Update with actual hash
+  }) {})
+];
+```
+
+### Other Linux platforms
+- Package managers coming soon, meanwhile see the Dev install guide below
 
 ## Configuration
 
