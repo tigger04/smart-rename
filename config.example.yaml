@@ -5,13 +5,13 @@
 api:
   openai:
     # key: ""  # Set your OpenAI API key or use OPENAI_API_KEY environment variable
-    model: "gpt-4o-mini"
+    model: "gpt-4o"
   claude:
     # key: ""  # Set your Claude API key or use ANTHROPIC_API_KEY environment variable
     model: "claude-3-5-sonnet-20241022"
   ollama:
     url: "http://localhost:11434"
-    model: "mistral"
+    model: "qwen2.5:7b"
 
 # Default provider (auto-detected if not set)
 default_provider: ""

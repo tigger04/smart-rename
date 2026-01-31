@@ -31,6 +31,8 @@ help:
 
 # Run tests
 test:
+	@echo "Running config loading tests..."
+	@./test/test_config_loading.sh
 	@echo "Running decimal normalisation tests..."
 	@./test/test_decimal_normalisation.sh
 	@echo "Running Makefile sed pattern tests..."
@@ -48,6 +50,7 @@ install: smart-rename
 	@echo "Installing files..."
 	@sudo install -m 755 smart-rename /usr/local/bin/
 	@sudo install -m 644 summarize-text-lib.sh /usr/local/share/smart-rename/
+	@sudo install -m 644 config.example.yaml /usr/local/share/smart-rename/
 	@echo "Installation complete: /usr/local/bin/smart-rename"
 
 # Uninstall (requires sudo)

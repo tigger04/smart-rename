@@ -17,7 +17,7 @@ prompt:
     - Other currencies: YYYY-MM-DD-CUR-amount-description
 
     For other documents:
-    - Include date if found in content (YYYY-MM-DD format)
+    - If date found in countent, include year and month only as a suffix (YYYY-MM format)
     - Be descriptive but concise
 
     Content:
@@ -42,14 +42,14 @@ api:
     # url: http://localhost:11434  # Uncomment to use remote Ollama
 
   openai:
-    model: gpt-4o-mini
+    model: gpt-4o
     # API key - can be set here or as OPENAI_API_KEY environment variable
     # key: sk-...
     max_tokens: 100
     timeout: 30
 
   claude:
-    model: claude-3-haiku-20240307
+    model: claude-3-5-sonnet-20241022
     # API key - can be set here or as CLAUDE_API_KEY environment variable
     # key: sk-ant-...
     max_tokens: 100

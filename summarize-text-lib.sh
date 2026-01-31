@@ -94,11 +94,11 @@ load_config() {
    local config_file="$config_dir/config"
    local yaml_config_file="$config_dir/config.yaml"
 
-   # Set defaults
+   # Set defaults (model values come from config.yaml)
    active_function=""
-   ollama_model="mistral"
-   openai_model="gpt-4o-mini"
-   claude_model="claude-3-5-sonnet-20241022"
+   ollama_model=""
+   openai_model=""
+   claude_model=""
    base_currency="EUR"  # Base currency for receipt naming
    source=STDIN
    source_identifier=""
@@ -161,6 +161,28 @@ load_config() {
 
    # Override default from config or env
    [[ -n "${DEFAULT_AI:-}" ]] && active_function="${DEFAULT_AI}"
+
+   # Validate that the selected provider has a model configured
+   case "$active_function" in
+      ollama)
+         if [[ -z "$ollama_model" ]]; then
+            echo "Error: No Ollama model configured. Set api.ollama.model in $yaml_config_file" >&2
+            exit 1
+         fi
+         ;;
+      openai)
+         if [[ -z "$openai_model" ]]; then
+            echo "Error: No OpenAI model configured. Set api.openai.model in $yaml_config_file" >&2
+            exit 1
+         fi
+         ;;
+      claude)
+         if [[ -z "$claude_model" ]]; then
+            echo "Error: No Claude model configured. Set api.claude.model in $yaml_config_file" >&2
+            exit 1
+         fi
+         ;;
+   esac
 }
 
 # Initialize configuration

@@ -11,9 +11,9 @@ export CLAUDE_API_KEY="your-claude-api-key-here"
 export DEFAULT_AI="openai"
 
 # Model configurations
-openai_model="gpt-4o-mini"
+openai_model="gpt-4o"
 claude_model="claude-3-5-sonnet-20241022"
-ollama_model="mistral"
+ollama_model="qwen2.5:7b"
 
 # Base currency for receipts (default: EUR)
 base_currency="EUR"  # Can be USD, GBP, etc.

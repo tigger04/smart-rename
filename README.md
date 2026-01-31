@@ -104,17 +104,16 @@ environment.systemPackages = with pkgs; [
 
 ## Configuration
 
-The tool works out of the box with sensible defaults. Configuration is optional and loaded in this order:
+The tool works out of the box with sensible defaults. Configuration is loaded in this order:
 
 1. **Environment variables** (highest priority)
    - `OPENAI_API_KEY`
    - `CLAUDE_API_KEY`
 
-2. **YAML config file** (optional): `~/.config/smart-rename/config.yaml`
-   - Only used if you create it - no config is auto-generated
-   - See `config.yaml` in this repo for an example
-
-3. **Built-in defaults** (used if no config file exists)
+2. **YAML config file**: `~/.config/smart-rename/config.yaml`
+   - Auto-created from `config.example.yaml` on first run
+   - All model defaults, prompts, and settings are defined here
+   - Requires `yq` for parsing (installed automatically via Homebrew)
 
 ### YAML Configuration Features
 
