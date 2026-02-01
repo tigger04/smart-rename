@@ -15,6 +15,8 @@ SMART_RENAME_SHARE_DIR="${SMART_RENAME_SHARE_DIR:-}"
 # Emergency fallback defaults — used ONLY when config.example.yaml is not found
 # The real defaults live in config.example.yaml (single source of truth)
 PROMPT_TEMPLATE=""
+CLASSIFY_PROMPT=""
+RECEIPT_PROMPT=""
 BASE_CURRENCY="EUR"
 OLLAMA_MODEL="smart-rename"
 OPENAI_MODEL="gpt-4o"
@@ -62,6 +64,14 @@ _load_yaml_config() {
 
     if val=$(yq eval '.prompt.template // ""' "$config_path" 2>/dev/null) && [[ -n "$val" ]]; then
         PROMPT_TEMPLATE="$val"
+    fi
+
+    if val=$(yq eval '.prompt.classify // ""' "$config_path" 2>/dev/null) && [[ -n "$val" ]]; then
+        CLASSIFY_PROMPT="$val"
+    fi
+
+    if val=$(yq eval '.prompt.receipt // ""' "$config_path" 2>/dev/null) && [[ -n "$val" ]]; then
+        RECEIPT_PROMPT="$val"
     fi
 
     if val=$(yq eval '.currency.base // ""' "$config_path" 2>/dev/null) && [[ -n "$val" ]]; then
@@ -128,15 +138,33 @@ load_config() {
         echo "Warning: yq not found, using built-in defaults. Install with: brew install yq" >&2
     fi
 
-    # Emergency fallback: ensure prompt template is always set
+    # Emergency fallback: ensure prompt templates are always set
     if [[ -z "$PROMPT_TEMPLATE" ]]; then
-        PROMPT_TEMPLATE="Generate a concise, descriptive filename for the following content (excluding extension).
-The filename should be in lowercase, use hyphens to separate words, and avoid special characters.
-First, determine the type of document, then name it accordingly.
-General documents: descriptive-summary-of-content
-Documents with a clear date: YYYY-MM-DD-description
-ONLY for financial receipts/invoices with a clear monetary amount: YYYY-MM-DD-amount.cc-description
-Never fabricate dates, amounts, or currencies not present in the content.
+        PROMPT_TEMPLATE="Generate a concise, descriptive filename for this {{CATEGORY}} (excluding extension).
+Lowercase, hyphens between words. Be specific: preserve key names, dates, identifying details.
+If the document has a clear date, prefix with YYYY-MM-DD-description.
+Never fabricate information not present in the content.
+Output ONLY the filename, nothing else.
+
+Content:
+{{CONTENT}}"
+    fi
+
+    if [[ -z "$CLASSIFY_PROMPT" ]]; then
+        CLASSIFY_PROMPT="Classify this document into exactly one of these categories:
+receipt, invoice, letter, report, medical, bank-statement,
+tax-document, contract, form, manual, correspondence, other
+Output ONLY the category name, nothing else.
+
+Content:
+{{CONTENT}}"
+    fi
+
+    if [[ -z "$RECEIPT_PROMPT" ]]; then
+        RECEIPT_PROMPT="Generate a filename for this {{CATEGORY}} (excluding extension).
+Format: YYYY-MM-DD-amount.cc-description
+Amount always includes exactly two decimal places.
+Lowercase, hyphens. Output ONLY the filename, nothing else.
 
 Content:
 {{CONTENT}}"
@@ -399,17 +427,45 @@ process_file() {
         return 1
     fi
 
-    # Build prompt from template
-    local prompt="$PROMPT_TEMPLATE"
+    # Step 1: Classify document type
+    local category="other"
+    if [[ -n "$CLASSIFY_PROMPT" ]]; then
+        local classify_prompt="$CLASSIFY_PROMPT"
+        classify_prompt="${classify_prompt//\{\{CONTENT\}\}/$content}"
+        local raw_category=""
+        if raw_category=$(get_ai_response "$classify_prompt"); then
+            # Normalise: lowercase, strip whitespace and punctuation
+            raw_category=$(echo "$raw_category" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]' | tr -cd '[:alnum:]-')
+            # Validate against known categories
+            case "$raw_category" in
+                receipt|invoice|letter|report|medical|bank-statement|tax-document|contract|form|manual|correspondence|other)
+                    category="$raw_category"
+                    ;;
+                *)
+                    category="other"
+                    ;;
+            esac
+        fi
+        echo "Classified as: $category" >&2
+    fi
+
+    # Step 2: Build naming prompt based on document category
+    local naming_template
+    if [[ "$category" == "receipt" || "$category" == "invoice" ]] && [[ -n "$RECEIPT_PROMPT" ]]; then
+        naming_template="$RECEIPT_PROMPT"
+    else
+        naming_template="$PROMPT_TEMPLATE"
+    fi
+
+    local prompt="$naming_template"
     prompt="${prompt//\{\{CONTENT\}\}/$content}"
     prompt="${prompt//\{\{FILENAME\}\}/$file}"
     prompt="${prompt//\{\{BASE_CURRENCY\}\}/$BASE_CURRENCY}"
+    prompt="${prompt//\{\{CATEGORY\}\}/$category}"
 
     # Get AI response using preference order
     local new_name=""
-    new_name=$(get_ai_response "$prompt") || true
-
-    if [[ -z "$new_name" ]]; then
+    if ! new_name=$(get_ai_response "$prompt") || [[ -z "$new_name" ]]; then
         echo "Error: Could not generate filename (no AI service available)" >&2
         return 1
     fi

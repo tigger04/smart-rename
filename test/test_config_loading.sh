@@ -86,30 +86,43 @@ assert_eq "config.example.yaml has 3 providers in preference" "3" "$pref_count"
 old_prompt=$(yq eval '.prompts.rename // ""' "$PROJECT_ROOT/config.example.yaml" 2>/dev/null)
 assert_eq "config.example.yaml does NOT use prompts.rename" "" "$old_prompt"
 
-# Prompt template has classification-first structure and never-fabricate guardrail
-if echo "$prompt_example" | grep -qi 'determine\|classify\|identify.*type'; then
-    echo "PASS: Prompt template requires document type classification"
-    passed=$((passed + 1))
-else
-    echo "FAIL: Prompt template should require document type classification"
+# General template should NOT contain receipt format (that's in prompt.receipt now)
+if echo "$prompt_example" | grep -qi "YYYY-MM-DD-amount\|amount\.cc\|decimal places"; then
+    echo "FAIL: General template should NOT contain receipt format patterns (moved to prompt.receipt)"
     failed=$((failed + 1))
+else
+    echo "PASS: General template does not contain receipt format patterns"
+    passed=$((passed + 1))
 fi
 echo ""
 
 if echo "$prompt_example" | grep -qi 'never fabricate\|never invent\|do not invent\|do not fabricate'; then
-    echo "PASS: Prompt template has never-fabricate guardrail"
+    echo "PASS: General template has never-fabricate guardrail"
     passed=$((passed + 1))
 else
-    echo "FAIL: Prompt template should have never-fabricate guardrail"
+    echo "FAIL: General template should have never-fabricate guardrail"
     failed=$((failed + 1))
 fi
 echo ""
 
-if echo "$prompt_example" | grep -qi 'ONLY.*receipt\|only.*receipt'; then
-    echo "PASS: Prompt template gates receipt format conditionally"
+# Classification and receipt prompts exist as separate keys
+classify_example=$(yq eval '.prompt.classify // ""' "$PROJECT_ROOT/config.example.yaml" 2>/dev/null)
+receipt_example=$(yq eval '.prompt.receipt // ""' "$PROJECT_ROOT/config.example.yaml" 2>/dev/null)
+
+if [[ -n "$classify_example" ]]; then
+    echo "PASS: config.example.yaml has separate prompt.classify"
     passed=$((passed + 1))
 else
-    echo "FAIL: Prompt template should gate receipt format with ONLY condition"
+    echo "FAIL: config.example.yaml should have prompt.classify for two-step flow"
+    failed=$((failed + 1))
+fi
+echo ""
+
+if [[ -n "$receipt_example" ]]; then
+    echo "PASS: config.example.yaml has separate prompt.receipt"
+    passed=$((passed + 1))
+else
+    echo "FAIL: config.example.yaml should have prompt.receipt for receipt-specific naming"
     failed=$((failed + 1))
 fi
 echo ""
@@ -133,6 +146,8 @@ SMART_RENAME_SHARE_DIR="$fake_share"
 
 # Emergency fallbacks — these should NOT be used when config.example.yaml is found
 PROMPT_TEMPLATE=""
+CLASSIFY_PROMPT=""
+RECEIPT_PROMPT=""
 BASE_CURRENCY="EMERGENCY"
 OLLAMA_MODEL="emergency-model"
 OPENAI_MODEL="emergency-model"
@@ -196,6 +211,8 @@ CONFIG_DIR="$TEMP_DIR"
 SMART_RENAME_SHARE_DIR="$fake_share"
 
 PROMPT_TEMPLATE=""
+CLASSIFY_PROMPT=""
+RECEIPT_PROMPT=""
 BASE_CURRENCY="EMERGENCY"
 OLLAMA_MODEL="emergency-model"
 OPENAI_MODEL="emergency-model"
@@ -243,6 +260,8 @@ CONFIG_DIR="$TEMP_DIR"
 SMART_RENAME_SHARE_DIR="$TEMP_DIR/nonexistent_share"
 
 PROMPT_TEMPLATE=""
+CLASSIFY_PROMPT=""
+RECEIPT_PROMPT=""
 BASE_CURRENCY="EUR"
 OLLAMA_MODEL="smart-rename"
 OPENAI_MODEL="gpt-4o"
@@ -291,6 +310,8 @@ CONFIG_DIR="$TEMP_DIR"
 SMART_RENAME_SHARE_DIR="$fake_share"
 
 PROMPT_TEMPLATE=""
+CLASSIFY_PROMPT=""
+RECEIPT_PROMPT=""
 BASE_CURRENCY="EMERGENCY"
 OLLAMA_MODEL="emergency-model"
 OPENAI_MODEL="emergency-model"

@@ -2,26 +2,44 @@
 # Copy this to ~/.config/smart-rename/config.yaml and customise as needed
 # All settings here are optional — the script has sensible built-in defaults
 
-# Prompt template for AI
+# Prompt templates for AI (two-step: classify then name)
 # Available placeholders:
 #   {{CONTENT}} - The file content
 #   {{FILENAME}} - Current filename
+#   {{CATEGORY}} - Document category (from classification step)
 #   {{BASE_CURRENCY}} - Your base currency
 prompt:
+  # Step 1: Classify the document type
+  classify: |
+    Classify this document into exactly one of these categories:
+    receipt, invoice, letter, report, medical, bank-statement,
+    tax-document, contract, form, manual, correspondence, other
+
+    Output ONLY the category name, nothing else.
+
+    Content:
+    {{CONTENT}}
+
+  # Step 2a: General naming (used for all non-receipt/invoice documents)
   template: |
-    Generate a concise, descriptive filename for the following content (excluding extension).
-    The filename should be in lowercase, use hyphens to separate words, and avoid special characters.
+    Generate a concise, descriptive filename for this {{CATEGORY}} (excluding extension).
+    Lowercase, hyphens between words, no special characters.
+    Be specific: preserve key names, dates, and identifying details from the content.
+    If the document has a clear date, prefix with YYYY-MM-DD-description.
+    Never fabricate information not present in the content.
+    Output ONLY the filename, nothing else.
 
-    First, determine the type of document (letter, report, medication list, receipt, invoice, etc.)
-    Then name it accordingly:
-    - General documents: descriptive-summary-of-content
-    - Documents with a clear date: YYYY-MM-DD-description
-    - ONLY for financial receipts or invoices with a clear monetary amount:
-      YYYY-MM-DD-amount.cc-description (two decimal places always)
-      Use {{BASE_CURRENCY}} as default currency
-      Other currencies: YYYY-MM-DD-CUR-amount.cc-description
+    Content:
+    {{CONTENT}}
 
-    Never fabricate dates, amounts, or currencies not present in the content.
+  # Step 2b: Receipt/invoice naming (used ONLY when classified as receipt or invoice)
+  receipt: |
+    Generate a filename for this {{CATEGORY}} (excluding extension).
+    Format: YYYY-MM-DD-amount.cc-description
+    Amount always includes exactly two decimal places.
+    Use {{BASE_CURRENCY}} as default currency.
+    Other currencies: YYYY-MM-DD-CUR-amount.cc-description
+    Lowercase, hyphens. Output ONLY the filename, nothing else.
 
     Content:
     {{CONTENT}}

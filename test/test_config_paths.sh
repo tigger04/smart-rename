@@ -64,6 +64,8 @@ CONFIG_FILE="$fake_config_dir/config.yaml"
 CONFIG_DIR="$fake_config_dir"
 
 PROMPT_TEMPLATE=""
+CLASSIFY_PROMPT=""
+RECEIPT_PROMPT=""
 BASE_CURRENCY="EUR"
 OLLAMA_MODEL="smart-rename"
 OPENAI_MODEL="gpt-4o"

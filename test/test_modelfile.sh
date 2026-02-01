@@ -78,16 +78,22 @@ echo ""
 from_line=$(grep '^FROM ' "$MODELFILE" | head -1)
 assert_eq "FROM directive is qwen2.5:7b" "FROM qwen2.5:7b" "$from_line"
 
-# --- Test 4: Has SYSTEM prompt with classification-first structure ---
+# --- Test 4: Has generic SYSTEM prompt (no receipt/amount contamination) ---
 echo "--- SYSTEM prompt ---"
 echo ""
 assert_contains "Has SYSTEM directive" '^SYSTEM """' "$MODELFILE"
-assert_contains "System prompt mentions filenames" 'filename' "$MODELFILE"
-assert_contains "System prompt mentions lowercase" 'owercase' "$MODELFILE"
-assert_contains "System prompt requires document type classification" 'determine.*type\|classify\|identify.*type' "$MODELFILE"
-assert_contains "System prompt has never-fabricate guardrail" 'Never fabricate\|never fabricate\|Never invent\|never invent\|Do not invent' "$MODELFILE"
-assert_contains "System prompt has receipt pattern as conditional" 'ONLY.*receipt\|Only.*receipt' "$MODELFILE"
-assert_contains "System prompt mentions general document naming" 'eneral.*document\|non-receipt\|descriptive' "$MODELFILE"
+assert_contains "System prompt mentions instructions" 'instruction' "$MODELFILE"
+
+# SYSTEM prompt must NOT mention receipts/invoices/amounts — those go in per-call prompts
+modelfile_system=$(sed -n '/^SYSTEM """/,/"""/p' "$MODELFILE")
+if echo "$modelfile_system" | grep -qi "receipt\|invoice\|amount\|decimal"; then
+    echo "FAIL: SYSTEM prompt must NOT mention receipt/invoice/amount (per-call prompts handle this)"
+    failed=$((failed + 1))
+else
+    echo "PASS: SYSTEM prompt is generic — no receipt/amount contamination"
+    passed=$((passed + 1))
+fi
+echo ""
 
 # --- Test 5: Has temperature parameter ---
 echo "--- PARAMETER settings ---"
