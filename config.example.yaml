@@ -13,10 +13,10 @@ prompt:
     The filename should be in lowercase, use hyphens to separate words, and avoid special characters.
 
     For receipts or invoices:
-    - Format: YYYY-MM-DD-amount.cc-description
+    - Format: YYYY-MM-DD-AMOUNT.description
     - Amount always includes exactly two decimal places
     - Use {{BASE_CURRENCY}} as default currency
-    - Other currencies: YYYY-MM-DD-CUR-amount.cc-description where CUR is the currency code
+    - Other currencies: YYYY-MM-DD-CUR-AMOUNT-description where CUR is the currency code
 
     Content:
     {{CONTENT}}
