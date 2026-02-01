@@ -11,14 +11,10 @@ prompt:
     Generate a concise, descriptive filename for the following content (excluding extension).
     The filename should be in lowercase, use hyphens to separate words, and avoid special characters.
 
-    For receipts/invoices:
+    if it is a receipts or invoices:
     - Format: YYYY-MM-DD-amount-description
     - Use {{BASE_CURRENCY}} as default currency
-    - Other currencies: YYYY-MM-DD-CUR-amount-description
-
-    For other documents:
-    - If date found in countent, include year and month only as a suffix (YYYY-MM format)
-    - Be descriptive but concise
+    - Other currencies: YYYY-MM-DD-CUR-amount-description where CUR is the currency code
 
     Content:
     {{CONTENT}}
@@ -42,7 +38,7 @@ api:
     # url: http://localhost:11434  # Uncomment to use remote Ollama
 
   openai:
-    model: gpt-4o
+    model: gpt-4o-mini
     # API key - can be set here or as OPENAI_API_KEY environment variable
     # key: sk-...
     max_tokens: 100
