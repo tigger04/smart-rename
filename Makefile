@@ -2,13 +2,12 @@
 # ABOUTME: Build configuration for smart-rename project
 # ABOUTME: Provides test targets, development installation, and release automation
 
-.PHONY: test install uninstall clean help release bump tag formula brew-upgrade
+.PHONY: test install uninstall clean help release bump tag formula brew-upgrade sync
 
 # Configuration
 SCRIPT := smart-rename
 FORMULA_PATH := $(shell brew --repository tigger04/tap 2>/dev/null)/Formula/smart-rename.rb
 VERSION := $(shell grep '^VERSION=' $(SCRIPT) | cut -d'"' -f2)
-SHA256 := $(shell shasum -a 256 $(SCRIPT) | awk '{print $$1}')
 
 # Default target
 help:
@@ -21,6 +20,7 @@ help:
 	@echo "  brew-upgrade - Upgrade local Homebrew installation"
 	@echo "  install      - Development install to /usr/local/bin (requires sudo)"
 	@echo "  uninstall    - Remove installed files (requires sudo)"
+	@echo "  sync         - Git add, commit, pull, push"
 	@echo "  clean        - Clean up test artifacts"
 	@echo ""
 	@echo "Current version: $(VERSION)"
@@ -37,6 +37,12 @@ test:
 	@./test/test_decimal_normalisation.sh
 	@echo "Running Makefile sed pattern tests..."
 	@./test/test_makefile_sed.sh
+	@echo "Running provider preference tests..."
+	@./test/test_provider_preference.sh
+	@echo "Running config path tests..."
+	@./test/test_config_paths.sh
+	@echo "Running Modelfile tests..."
+	@./test/test_modelfile.sh
 	@echo "Running Nix packaging tests..."
 	@./test/test_nix_build.sh
 	@echo "All tests passed!"
@@ -49,8 +55,8 @@ install: smart-rename
 	@sudo install -d /usr/local/share/smart-rename
 	@echo "Installing files..."
 	@sudo install -m 755 smart-rename /usr/local/bin/
-	@sudo install -m 644 summarize-text-lib.sh /usr/local/share/smart-rename/
 	@sudo install -m 644 config.example.yaml /usr/local/share/smart-rename/
+	@sudo install -m 644 smart-rename.Modelfile /usr/local/share/smart-rename/
 	@echo "Installation complete: /usr/local/bin/smart-rename"
 
 # Uninstall (requires sudo)
@@ -115,7 +121,7 @@ tag:
 		echo "Tag v$(VERSION) pushed"; \
 	fi
 
-# Update Homebrew formula (re-reads version/sha dynamically)
+# Update Homebrew formula (computes SHA from GitHub tarball)
 formula:
 	@echo "Updating Homebrew formula..."
 	@if [ -z "$(FORMULA_PATH)" ] || [ ! -f "$(FORMULA_PATH)" ]; then \
@@ -123,10 +129,13 @@ formula:
 		exit 1; \
 	fi
 	@CURRENT_VERSION=$$(grep '^VERSION=' $(SCRIPT) | cut -d'"' -f2); \
-	CURRENT_SHA=$$(shasum -a 256 $(SCRIPT) | awk '{print $$1}'); \
-	echo "  Version: $$CURRENT_VERSION"; \
-	echo "  SHA256:  $$CURRENT_SHA"; \
-	sed -i.bak "s|url \"https://raw.githubusercontent.com/tigger04/smart-rename/v[^/]*/smart-rename\"|url \"https://raw.githubusercontent.com/tigger04/smart-rename/v$$CURRENT_VERSION/smart-rename\"|" "$(FORMULA_PATH)"; \
+	TARBALL_URL="https://github.com/tigger04/smart-rename/archive/refs/tags/v$${CURRENT_VERSION}.tar.gz"; \
+	echo "  Version:  $$CURRENT_VERSION"; \
+	echo "  Tarball:  $$TARBALL_URL"; \
+	echo "  Fetching SHA256..."; \
+	CURRENT_SHA=$$(curl -sL "$$TARBALL_URL" | shasum -a 256 | awk '{print $$1}'); \
+	echo "  SHA256:   $$CURRENT_SHA"; \
+	sed -i.bak "s|url \"https://github.com/tigger04/smart-rename/archive/refs/tags/v[^\"]*\.tar\.gz\"|url \"$$TARBALL_URL\"|" "$(FORMULA_PATH)"; \
 	sed -i.bak "s|sha256 \"[^\"]*\"|sha256 \"$$CURRENT_SHA\"|" "$(FORMULA_PATH)"; \
 	sed -i.bak "s|version \"[^\"]*\"|version \"$$CURRENT_VERSION\"|" "$(FORMULA_PATH)" && rm -f "$(FORMULA_PATH).bak"; \
 	cd "$$(dirname "$(FORMULA_PATH)")" && \
@@ -140,3 +149,16 @@ brew-upgrade:
 	@echo "Upgrading local installation..."
 	@brew upgrade tigger04/tap/smart-rename || brew reinstall tigger04/tap/smart-rename
 	@echo "Installed version: $$(smart-rename --version)"
+
+# Git sync: add all, commit, pull (merge), push
+sync:
+	@if [ -z "$$(git status --porcelain)" ]; then \
+		echo "Nothing to commit, pulling..."; \
+		git pull && git push; \
+	else \
+		MSG=$${MSG:-"sync: update"}; \
+		git add --all && \
+		git commit -m "$$MSG" && \
+		git pull && \
+		git push; \
+	fi

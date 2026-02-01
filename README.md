@@ -16,11 +16,11 @@ So for example:
 
 ``` sh
 $ smart-rename e134-a1cf-4b4b-af65-ccf83c5270cb.pdf
-Trying Ollama (qwen2.5:7b)...
-✓ Got response from Ollama
+Trying Ollama (smart-rename)...
+Got response from Ollama
 Generated name: 2026-01-15-54.97-three-bill.pdf
-📎 e134-a1cf-4b4b-af65-ccf83c5270cb.pdf →
-🆕 2026-01-15-54.97-three-bill.pdf(y/N):
+  e134-a1cf-4b4b-af65-ccf83c5270cb.pdf ->
+  2026-01-15-54.97-three-bill.pdf (y/N):
 ```
 
 That looks satisfactory to me, so the file will now be called `2026-01-15-54.97-three-bill.pdf`
@@ -35,12 +35,13 @@ That looks satisfactory to me, so the file will now be called `2026-01-15-54.97-
 
 ## Features
 
-- Analyze file content and generate smart filenames
+- Analyse file content and generate smart filenames
 - Special formatting for receipts/invoices (YYYY-MM-DD-amount-description)
 - Support for multiple currencies with configurable base currency
 - Batch processing with pattern matching (regex or glob)
-- Multiple AI provider support (OpenAI, Claude, Ollama)
+- Multiple AI provider support with configurable preference order
 - Interactive or automatic rename mode
+- Custom Ollama model with tuned parameters for filename generation
 
 ## Supported File Types
 
@@ -67,8 +68,8 @@ That looks satisfactory to me, so the file will now be called `2026-01-15-54.97-
 
 ## Quick Start
 
-### MacOS
-```bash sh
+### macOS
+```bash
 brew install tigger04/tap/smart-rename
 ```
 
@@ -79,6 +80,9 @@ The following are installed automatically via Homebrew:
 - `yq` - YAML parser
 - `jq` - JSON parser
 - `poppler` - PDF text extraction (provides `pdftotext`)
+
+Optional:
+- `ollama` - for local AI (default provider); install with `brew install ollama`
 
 ### NixOS/Nix
 ```bash
@@ -93,7 +97,7 @@ environment.systemPackages = with pkgs; [
   (pkgs.callPackage (pkgs.fetchFromGitHub {
     owner = "tigger04";
     repo = "smart-rename";
-    rev = "v5.22.0";  # Use latest version
+    rev = "v5.23.0";  # Use latest version
     sha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";  # Update with actual hash
   }) {})
 ];
@@ -104,46 +108,65 @@ environment.systemPackages = with pkgs; [
 
 ## Configuration
 
-The tool works out of the box with sensible defaults. Configuration is loaded in this order:
+The tool works out of the box with sensible built-in defaults. No configuration file is needed.
 
-1. **Environment variables** (highest priority)
-   - `OPENAI_API_KEY`
-   - `CLAUDE_API_KEY`
+### Provider Order
 
-2. **YAML config file**: `~/.config/smart-rename/config.yaml`
-   - Auto-created from `config.example.yaml` on first run
-   - All model defaults, prompts, and settings are defined here
-   - Requires `yq` for parsing (installed automatically via Homebrew)
+By default, smart-rename tries AI providers in this order:
+1. **Ollama** (local, private, no API key needed)
+2. **OpenAI** (requires `OPENAI_API_KEY`)
+3. **Claude** (requires `CLAUDE_API_KEY`)
 
-### YAML Configuration Features
+The first provider that is available and responds successfully is used.
 
-- **Custom prompts**: Configure the AI prompt with placeholders
-- **API settings**: All providers and models in one place
-- **Abbreviations**: Clean YAML format for custom abbreviations
+### Optional Configuration
+
+To customise behaviour, create a config file:
+
+```bash
+# Copy the reference config
+cp $(brew --prefix)/share/smart-rename/config.example.yaml ~/.config/smart-rename/config.yaml
+
+# Edit to taste
+nano ~/.config/smart-rename/config.yaml
+```
+
+The config file lets you override:
+- **Provider order**: Change which AI is tried first
+- **Models**: Use different models for each provider
+- **Prompt**: Customise the filename generation prompt
+- **API keys**: Store keys in the config instead of environment variables
+- **Currency**: Change the base currency for invoice amounts
 
 Example YAML structure:
 ```yaml
-prompts:
-  rename: |
-    Your custom prompt with {{BASE_CURRENCY}} and {{ABBREVIATIONS}} placeholders
+prompt:
+  template: |
+    Your custom prompt with {{BASE_CURRENCY}} and {{CONTENT}} placeholders
+
+api:
+  preference:
+    - claude
+    - openai
+    - ollama
+  ollama:
+    model: smart-rename
 
 currency:
   base: "USD"
-
-abbreviations:
-  myorg: "My Organization"
 ```
 
-### Auto-Detection
+### Environment Variables
 
-- If only one API key is provided, that provider becomes the default
-- If multiple keys are available, preference order: OpenAI → Claude → Ollama
-- If no API keys but Ollama is running locally, uses Ollama
-- If all are provided, the default can be set in `config.yaml`
+API keys can be set as environment variables (these take priority over config file values):
+- `OPENAI_API_KEY`
+- `CLAUDE_API_KEY`
 
 ### Local AI with Ollama
 
-The default local model is **Qwen 2.5 7B** (`qwen2.5:7b`). This is the smallest model we found that reliably follows the filename format instructions - smaller 3B models tend to ignore the date-amount-vendor structure or produce inconsistent results.
+The default configuration uses a custom Ollama model called `smart-rename`, built from Qwen 2.5 7B with tuned parameters for filename generation. This model is automatically created on first run when Ollama is available.
+
+The base model is **Qwen 2.5 7B** (`qwen2.5:7b`). This is the smallest model we found that reliably follows the filename format instructions - smaller 3B models tend to ignore the date-amount-vendor structure or produce inconsistent results.
 
 **System requirements:**
 - **Minimum**: 8GB RAM (model will run but may be slow)
@@ -152,42 +175,22 @@ The default local model is **Qwen 2.5 7B** (`qwen2.5:7b`). This is the smallest 
 - **Disk**: ~4.7GB for the model download
 
 **Performance notes:**
-- First run downloads the model (~4.7GB) - this only happens once
+- First run downloads the base model (~4.7GB) and creates the custom model - this only happens once
 - On Apple Silicon with 16GB+, responses typically take 2-5 seconds
-  - Personally I find this to be about the same amount of time it takes for an API roundtrip to Anthropic or OpenAI, so it's pretty good if I may say so myself!
 - On systems with less RAM, you may experience slower responses as the model swaps to disk
-- Your mileage may vary depending on hardware
 
 **Alternative**: If local performance is too slow, consider using the OpenAI or Claude APIs instead - set `OPENAI_API_KEY` or `CLAUDE_API_KEY` environment variable.
 
-The model is automatically pulled on first use. To use a different model, create a config file at `~/.config/smart-rename/config.yaml` and set `api.ollama.model`.
+To use a different Ollama model, set `api.ollama.model` in your config file.
 
-**Optional: Custom Modelfile**
+**Custom Modelfile**
 
-For optimized local processing, create a custom model with tuned parameters:
+The custom model is defined in `smart-rename.Modelfile`, which is installed alongside the script. It sets:
+- Low temperature (0.2) for consistent output
+- Extended context window (8192 tokens)
+- System prompt tuned for filename generation
 
-```bash
-# Create ~/.ollama/modelfiles/smart-rename.Modelfile
-cat > ~/.ollama/modelfiles/smart-rename.Modelfile << 'EOF'
-FROM qwen2.5:7b
-
-SYSTEM """You generate concise, descriptive filenames.
-Rules:
-- Output only the filename, nothing else
-- No extension, lowercase, use hyphens
-- For receipts/invoices: YYYY-MM-DD-amount.cc-description
-- Amount always includes exactly two decimal places
-- Be specific, preserve key names, dates, figures"""
-
-PARAMETER temperature 0.2
-PARAMETER num_ctx 8192
-EOF
-
-# Build it
-ollama create smart-rename -f ~/.ollama/modelfiles/smart-rename.Modelfile
-```
-
-Then set `model: smart-rename` in your config to use it.
+You can inspect or modify the Modelfile at `$(brew --prefix)/share/smart-rename/smart-rename.Modelfile`.
 
 ## Usage
 
@@ -208,10 +211,6 @@ smart-rename -r "\.docx$"
 
 # Use glob pattern instead of regex
 smart-rename -g "*.pdf"
-
-# Use specific AI provider
-smart-rename --claude document.pdf
-smart-rename --openai receipt.jpg
 ```
 
 ## CLI switches
@@ -220,14 +219,12 @@ smart-rename --openai receipt.jpg
 - `-r, --recursive`: Search files recursively
 - `-g, --glob`: Treat pattern as glob instead of regex
 
-### AI Models
-- `-l, --ollama[=model]`: Use Ollama API
-- `-o, --openai[=model]`: Use OpenAI API
-- `--claude`: Use Claude API
-- `--prompt=TEXT`: Custom prompt
-
 ### Rename Options
 - `-y, --yes`: Auto-rename without confirmation
+
+### Info
+- `-h, --help`: Show help message
+- `-v, --version`: Show version
 
 ## Filename Format
 
@@ -248,15 +245,20 @@ The tool comes with a few example abbreviations, adjust to your own needs in `co
 - nrh = National Rehabilitation Hospital
 - mater = Mater Misericordiae University Hospital
 
-## Examples
+## Important Files
 
-```bash
-# Rename all PDF receipts in current directory
-smart-rename -g "receipt*.pdf"
-> 
-
-# Process all documents recursively with auto-rename
-smart-rename -r -y ".*\.(pdf|jpg|png)$"
+| File | Purpose |
+|------|---------|
+| `smart-rename` | Main executable script |
+| `config.example.yaml` | Reference configuration file |
+| `config.yaml` | Working config (not installed; for dev use) |
+| `smart-rename.Modelfile` | Ollama model definition |
+| `Makefile` | Build, test, release automation |
+| `summarize-text-lib.sh` | Legacy text summarisation library |
+| `docs/architecture.md` | Architecture and design decisions |
+| `docs/vision.md` | Project vision and goals |
+| `HOMEBREW.md` | Homebrew formula management |
+| `test/` | Test suite |
 
 ## Development Installation
 
@@ -294,20 +296,22 @@ make release
 | Target | Description |
 |--------|-------------|
 | `make test` | Run all tests |
-| `make release` | Full release: test → bump → commit → tag → formula → brew-upgrade |
-| `make bump` | Increment patch version (X.Y.Z → X.Y.Z+1) |
+| `make release` | Full release: test, bump, commit, tag, formula, brew-upgrade |
+| `make bump` | Increment patch version (X.Y.Z -> X.Y.Z+1) |
 | `make tag` | Create and push git tag for current VERSION |
 | `make formula` | Update Homebrew formula with version and SHA256 |
 | `make brew-upgrade` | Upgrade local Homebrew installation |
+| `make sync` | Git add, commit, pull, push |
 
 The release process automatically:
-- Increments the patch version (e.g., 5.20.0 → 5.20.1)
+- Increments the patch version (e.g., 5.23.0 -> 5.23.1)
 - Commits the version bump
 - Creates and pushes a git tag
-- Updates the Homebrew formula with new version and SHA256
+- Downloads the tarball and computes its SHA256
+- Updates the Homebrew formula with new version, URL, and SHA256
 - Upgrades the local Homebrew installation
 - Requires a clean git working directory before starting
 
 ## License
 
-MIT License - See LICENSE file for details
+MIT License - Copyright Tadg Paul - See LICENSE file for details

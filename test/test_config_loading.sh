@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# ABOUTME: Tests that model defaults come from config.yaml, not hardcoded in scripts
-# ABOUTME: Validates config loading, auto-creation, and model variable population
+# ABOUTME: Tests that model defaults are baked into the script and config overrides work
+# ABOUTME: Validates config loading, optional config behaviour, and model variable population
 
 set -euo pipefail
 
@@ -21,12 +21,12 @@ assert_eq() {
 
     if [[ "$actual" == "$expected" ]]; then
         echo "PASS: $test_name"
-        ((passed++)) || true
+        passed=$((passed + 1))
     else
         echo "FAIL: $test_name"
         echo "      Expected: $expected"
         echo "      Got:      $actual"
-        ((failed++)) || true
+        failed=$((failed + 1))
     fi
     echo ""
 }
@@ -37,12 +37,12 @@ assert_not_empty() {
 
     if [[ -n "$actual" ]]; then
         echo "PASS: $test_name (value: $actual)"
-        ((passed++)) || true
+        passed=$((passed + 1))
     else
         echo "FAIL: $test_name"
         echo "      Expected: non-empty value"
         echo "      Got:      (empty)"
-        ((failed++)) || true
+        failed=$((failed + 1))
     fi
     echo ""
 }
@@ -50,21 +50,19 @@ assert_not_empty() {
 echo "=== Testing config-based model loading ==="
 echo ""
 
-# --- Test 1: No hardcoded model defaults in smart-rename script ---
-echo "--- Checking smart-rename has no hardcoded model defaults ---"
+# --- Test 1: Baked-in model defaults in smart-rename script ---
+echo "--- Checking smart-rename has baked-in model defaults ---"
 echo ""
 
-# Check that OPENAI_MODEL is initialized empty
+# Models should have non-empty defaults baked in
 openai_default=$(grep '^OPENAI_MODEL=' "$PROJECT_ROOT/smart-rename" | head -1)
-assert_eq "OPENAI_MODEL initialized empty" 'OPENAI_MODEL=""' "$openai_default"
+assert_eq "OPENAI_MODEL has baked-in default" 'OPENAI_MODEL="gpt-4o"' "$openai_default"
 
-# Check that CLAUDE_MODEL is initialized empty
 claude_default=$(grep '^CLAUDE_MODEL=' "$PROJECT_ROOT/smart-rename" | head -1)
-assert_eq "CLAUDE_MODEL initialized empty" 'CLAUDE_MODEL=""' "$claude_default"
+assert_eq "CLAUDE_MODEL has baked-in default" 'CLAUDE_MODEL="claude-3-5-sonnet-20241022"' "$claude_default"
 
-# Check that OLLAMA_MODEL is initialized empty (strip any trailing comment)
 ollama_default=$(grep '^OLLAMA_MODEL=' "$PROJECT_ROOT/smart-rename" | head -1 | sed 's/[[:space:]]*#.*//')
-assert_eq "OLLAMA_MODEL initialized empty" 'OLLAMA_MODEL=""' "$ollama_default"
+assert_eq "OLLAMA_MODEL has baked-in default" 'OLLAMA_MODEL="smart-rename"' "$ollama_default"
 
 # --- Test 2: Config files contain model defaults ---
 echo "--- Checking config files define model defaults ---"
@@ -103,7 +101,17 @@ else
     assert_eq "claude model consistent across configs" "$claude_config" "$claude_example"
     assert_eq "ollama model consistent across configs" "$ollama_config" "$ollama_example"
 
-    # --- Test 4: load_config reads models from YAML ---
+    # --- Test 4: Config uses prompt.template (not prompts.rename) ---
+    echo "--- Config uses correct prompt key ---"
+    echo ""
+
+    prompt_template=$(yq eval '.prompt.template // ""' "$PROJECT_ROOT/config.example.yaml" 2>/dev/null)
+    assert_not_empty "config.example.yaml uses prompt.template" "$prompt_template"
+
+    old_prompt=$(yq eval '.prompts.rename // ""' "$PROJECT_ROOT/config.example.yaml" 2>/dev/null)
+    assert_eq "config.example.yaml does NOT use prompts.rename" "" "$old_prompt"
+
+    # --- Test 5: load_config reads models from YAML ---
     echo "--- Testing load_config reads from YAML ---"
     echo ""
 
@@ -124,13 +132,16 @@ YAML
 set -euo pipefail
 CONFIG_FILE="$TEMP_DIR/test_config.yaml"
 CONFIG_DIR="$TEMP_DIR"
-OPENAI_MODEL=""
-CLAUDE_MODEL=""
-OLLAMA_MODEL=""
+OPENAI_MODEL="gpt-4o"
+CLAUDE_MODEL="claude-3-5-sonnet-20241022"
+OLLAMA_MODEL="smart-rename"
 PROMPT_TEMPLATE=""
+DEFAULT_PROMPT="test"
 BASE_CURRENCY="EUR"
 MAX_CONTENT_LENGTH=5000
 API_TIMEOUT=30
+PROVIDER_PREFERENCE=(ollama openai claude)
+SMART_RENAME_SHARE_DIR=""
 
 # Extract load_config function from smart-rename
 eval "\$(sed -n '/^load_config()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
@@ -151,22 +162,33 @@ SCRIPT
     assert_eq "load_config reads openai model from YAML" "test-openai-model" "$openai_loaded"
     assert_eq "load_config reads claude model from YAML" "test-claude-model" "$claude_loaded"
     assert_eq "load_config reads ollama model from YAML" "test-ollama-model" "$ollama_loaded"
+
+    # --- Test 6: Config has api.preference list ---
+    echo "--- Config has preference list ---"
+    echo ""
+
+    pref_count=$(yq eval '.api.preference | length' "$PROJECT_ROOT/config.example.yaml" 2>/dev/null)
+    assert_eq "config.example.yaml has 3 providers in preference" "3" "$pref_count"
 fi
 
-# --- Test 5: No hardcoded model defaults in summarize-text-lib.sh ---
+# --- Test 7: No hardcoded model defaults in summarize-text-lib.sh ---
 echo "--- Checking summarize-text-lib.sh has no hardcoded model defaults ---"
 echo ""
 
-# The defaults in load_config should be empty strings
-# Look for the defaults section in load_config function
-lib_openai=$(grep '^\s*openai_model=' "$PROJECT_ROOT/summarize-text-lib.sh" | head -1 | sed 's/.*=//')
-assert_eq "summarize-text-lib.sh openai_model initialized empty" '""' "$lib_openai"
+if [[ -f "$PROJECT_ROOT/summarize-text-lib.sh" ]]; then
+    # The defaults in load_config should be empty strings
+    lib_openai=$(grep '^\s*openai_model=' "$PROJECT_ROOT/summarize-text-lib.sh" | head -1 | sed 's/.*=//')
+    assert_eq "summarize-text-lib.sh openai_model initialized empty" '""' "$lib_openai"
 
-lib_claude=$(grep '^\s*claude_model=' "$PROJECT_ROOT/summarize-text-lib.sh" | head -1 | sed 's/.*=//')
-assert_eq "summarize-text-lib.sh claude_model initialized empty" '""' "$lib_claude"
+    lib_claude=$(grep '^\s*claude_model=' "$PROJECT_ROOT/summarize-text-lib.sh" | head -1 | sed 's/.*=//')
+    assert_eq "summarize-text-lib.sh claude_model initialized empty" '""' "$lib_claude"
 
-lib_ollama=$(grep '^\s*ollama_model=' "$PROJECT_ROOT/summarize-text-lib.sh" | head -1 | sed 's/.*=//')
-assert_eq "summarize-text-lib.sh ollama_model initialized empty" '""' "$lib_ollama"
+    lib_ollama=$(grep '^\s*ollama_model=' "$PROJECT_ROOT/summarize-text-lib.sh" | head -1 | sed 's/.*=//')
+    assert_eq "summarize-text-lib.sh ollama_model initialized empty" '""' "$lib_ollama"
+else
+    echo "SKIP: summarize-text-lib.sh not found (may have been removed)"
+    echo ""
+fi
 
 # Summary
 echo "=== Summary ==="

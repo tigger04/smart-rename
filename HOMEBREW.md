@@ -1,44 +1,77 @@
 # Homebrew Formula Management
 
-This project automatically manages its Homebrew formula through a global git pre-push hook.
+This project distributes via Homebrew using a GitHub archive tarball.
 
 ## How It Works
 
-1. **Detection**: The git hook detects this is a Homebrew project by:
-   - Finding `.homebrew-formula` file (points to formula location)
-   - Or auto-detecting formula at `/tmp/homebrew-tap-fix/Formula/smart-rename.rb`
+1. **Formula location**: The Homebrew formula lives in the `tigger04/homebrew-tap` repository
+2. **Tarball URL**: Points to `https://github.com/tigger04/smart-rename/archive/refs/tags/vX.Y.Z.tar.gz`
+3. **SHA256**: Computed from the tarball at release time
+4. **Installed files**:
+   - `bin/smart-rename` - the main executable
+   - `share/smart-rename/config.example.yaml` - reference configuration
+   - `share/smart-rename/smart-rename.Modelfile` - Ollama model definition
+5. **inreplace**: The formula patches `SMART_RENAME_SHARE_DIR` in the script to point to `pkgshare`
 
-2. **Version Check**: Extracts version from the `VERSION=` line in the script
+## Formula Path
 
-3. **SHA256 Calculation**: Computes SHA256 hash of the main `smart-rename` script
-
-4. **Auto-Update**: If version or SHA doesn't match the formula, it:
-   - Updates the formula automatically
-   - Blocks the push until formula is committed to homebrew tap
-
-## Manual Override
-
-- **Explicit formula path**: Create `.homebrew-formula` with path to formula
-- **Skip checks**: Create `.no-homebrew` file to disable formula checking
-
-## Formula Location
-
-The Homebrew formula is stored in the separate `tigoss/homebrew-tap` repository at:
+The formula is at:
 ```
-/tmp/homebrew-tap-fix/Formula/smart-rename.rb
+$(brew --repository tigger04/tap)/Formula/smart-rename.rb
 ```
 
-This formula contains:
-- `version`: The current version string
-- `sha256`: SHA256 hash of the script file
-- Installation instructions for Homebrew
+A pointer is stored in `.homebrew-formula` for tooling.
 
-## Workflow
+## Release Workflow
 
-1. Make changes to `smart-rename` script
-2. Update `VERSION=` in the script
-3. Attempt to push → hook auto-updates formula
-4. Commit and push formula changes to homebrew-tap
-5. Push smart-rename changes
+The `make release` target handles everything:
 
-The hook ensures the formula is always in sync with the actual script.
+1. Runs tests
+2. Bumps the patch version
+3. Commits and pushes the version bump
+4. Creates and pushes a git tag
+5. Downloads the tarball from GitHub
+6. Computes the SHA256 of the tarball
+7. Updates the formula (URL, SHA256, version)
+8. Commits and pushes the formula
+9. Upgrades the local Homebrew installation
+
+### Manual Formula Update
+
+```bash
+make formula
+```
+
+This will:
+- Read the current VERSION from the script
+- Fetch the tarball from GitHub and compute its SHA256
+- Update the formula with `sed` patterns
+- Commit and push to the homebrew-tap repo
+
+## Configuration on Install
+
+The formula does NOT auto-create a user config. Instead:
+- Built-in defaults work out of the box
+- Users who want customisation copy the reference config:
+  ```bash
+  cp $(brew --prefix)/share/smart-rename/config.example.yaml ~/.config/smart-rename/config.yaml
+  ```
+
+## Dependencies
+
+Required (installed by Homebrew):
+- bash, curl, fd, jq, yq, poppler
+
+Optional (user installs separately):
+- ollama (`brew install ollama`)
+
+## Troubleshooting
+
+### SHA mismatch on install
+The SHA is computed from the GitHub tarball. If the tag was force-pushed or the tarball changed, run `make formula` to recompute.
+
+### config.example.yaml not found
+Check that the share directory exists: `ls $(brew --prefix)/share/smart-rename/`
+
+### Custom model not created
+Ensure Ollama is running: `brew services start ollama`. The model is created on first use.

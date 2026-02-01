@@ -1,0 +1,15 @@
+# ABOUTME: Ollama Modelfile for the smart-rename custom model
+# ABOUTME: Tuned parameters for concise filename generation
+
+FROM qwen2.5:7b
+
+SYSTEM """You generate concise, descriptive filenames.
+Rules:
+- Output only the filename, nothing else
+- No extension, lowercase, use hyphens
+- For receipts/invoices: YYYY-MM-DD-amount.cc-description
+- Amount always includes exactly two decimal places
+- Be specific, preserve key names, dates, figures"""
+
+PARAMETER temperature 0.2
+PARAMETER num_ctx 8192

@@ -11,10 +11,11 @@ prompt:
     Generate a concise, descriptive filename for the following content (excluding extension).
     The filename should be in lowercase, use hyphens to separate words, and avoid special characters.
 
-    if it is a receipts or invoices:
-    - Format: YYYY-MM-DD-amount-description
+    For receipts or invoices:
+    - Format: YYYY-MM-DD-amount.cc-description
+    - Amount always includes exactly two decimal places
     - Use {{BASE_CURRENCY}} as default currency
-    - Other currencies: YYYY-MM-DD-CUR-amount-description where CUR is the currency code
+    - Other currencies: YYYY-MM-DD-CUR-amount.cc-description where CUR is the currency code
 
     Content:
     {{CONTENT}}
@@ -33,43 +34,23 @@ api:
     - claude
 
   ollama:
-    model: qwen2.5:7b
+    model: smart-rename
     timeout: 30
     # url: http://localhost:11434  # Uncomment to use remote Ollama
 
   openai:
-    model: gpt-4o-mini
-    # API key - can be set here or as OPENAI_API_KEY environment variable
+    model: gpt-4o
+    # API key — can be set here or as OPENAI_API_KEY environment variable
     # key: sk-...
-    max_tokens: 100
-    timeout: 30
 
   claude:
     model: claude-3-5-sonnet-20241022
-    # API key - can be set here or as CLAUDE_API_KEY environment variable
+    # API key — can be set here or as CLAUDE_API_KEY environment variable
     # key: sk-ant-...
-    max_tokens: 100
-    timeout: 30
 
-# File processing settings
-processing:
-  max_content_length: 5000  # Characters to read from files
-  pdf_extract_pages: 5      # Max pages to extract from PDFs
-
-# Abbreviations for common terms
-# These will be expanded in filenames
+# Custom abbreviations for common terms
 abbreviations:
-  svph: "st-vincents-private-hospital"
-  svuh: "st-vincents-university-hospital"
-  nrh: "national-rehabilitation-hospital"
-  mater: "mater-misericordiae-university-hospital"
-
-# Search behavior
-search:
-  default_recursive: false  # Set to true to search recursively by default
-  default_pattern_type: regex  # Options: regex, glob
-
-# Rename behavior
-rename:
-  auto_confirm: false  # Set to true to skip confirmation prompts
-  create_backup: false  # Set to true to create .bak files before renaming
+  svph: "St. Vincent's Private Hospital"
+  svuh: "St. Vincent's University Hospital"
+  nrh: "National Rehabilitation Hospital"
+  mater: "Mater Misericordiae University Hospital"
