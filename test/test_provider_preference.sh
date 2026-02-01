@@ -76,9 +76,8 @@ set -euo pipefail
 CONFIG_FILE="$TEMP_DIR/custom_pref.yaml"
 CONFIG_DIR="$TEMP_DIR"
 
-# Baked-in defaults
+# Emergency fallback defaults
 PROMPT_TEMPLATE=""
-DEFAULT_PROMPT="test"
 BASE_CURRENCY="EUR"
 OLLAMA_MODEL="smart-rename"
 OPENAI_MODEL="gpt-4o"
@@ -88,7 +87,9 @@ API_TIMEOUT=30
 PROVIDER_PREFERENCE=(ollama openai claude)
 SMART_RENAME_SHARE_DIR=""
 
-# Extract load_config function
+# Extract functions from smart-rename
+eval "\$(sed -n '/^_load_yaml_config()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
+eval "\$(sed -n '/^resolve_share_dir()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
 eval "\$(sed -n '/^load_config()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
 
 load_config
@@ -116,7 +117,6 @@ CONFIG_FILE="$TEMP_DIR/no_pref.yaml"
 CONFIG_DIR="$TEMP_DIR"
 
 PROMPT_TEMPLATE=""
-DEFAULT_PROMPT="test"
 BASE_CURRENCY="EUR"
 OLLAMA_MODEL="smart-rename"
 OPENAI_MODEL="gpt-4o"
@@ -126,6 +126,8 @@ API_TIMEOUT=30
 PROVIDER_PREFERENCE=(ollama openai claude)
 SMART_RENAME_SHARE_DIR=""
 
+eval "\$(sed -n '/^_load_yaml_config()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
+eval "\$(sed -n '/^resolve_share_dir()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
 eval "\$(sed -n '/^load_config()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
 
 load_config

@@ -12,7 +12,8 @@ CONFIG_FILE="$CONFIG_DIR/config.yaml"
 # Patched by Homebrew inreplace; empty means "not set"
 SMART_RENAME_SHARE_DIR="${SMART_RENAME_SHARE_DIR:-}"
 
-# Baked-in defaults (overridden by config.yaml if present)
+# Emergency fallback defaults — used ONLY when config.example.yaml is not found
+# The real defaults live in config.example.yaml (single source of truth)
 PROMPT_TEMPLATE=""
 BASE_CURRENCY="EUR"
 OLLAMA_MODEL="smart-rename"
@@ -21,17 +22,6 @@ CLAUDE_MODEL="claude-3-5-sonnet-20241022"
 MAX_CONTENT_LENGTH=5000
 API_TIMEOUT=30
 PROVIDER_PREFERENCE=(ollama openai claude)
-
-# Default prompt used when none is configured
-DEFAULT_PROMPT="Generate a concise, descriptive filename for the following content (excluding extension).
-The filename should be in lowercase, use hyphens to separate words, and avoid special characters.
-
-For receipts or invoices:
-- Format: YYYY-MM-DD-amount.cc-description
-- Amount always includes exactly two decimal places
-
-Content:
-{{CONTENT}}"
 
 # Resolve the share directory where config.example.yaml and Modelfile live
 resolve_share_dir() {
@@ -55,95 +45,100 @@ resolve_share_dir() {
     echo "$script_dir"
 }
 
-# Load configuration from optional YAML config file
-load_config() {
-    # If user has no config file, that's fine — use baked-in defaults
-    if [[ ! -f "$CONFIG_FILE" ]]; then
-        PROMPT_TEMPLATE="$DEFAULT_PROMPT"
+# Load values from a YAML config file into global variables
+# Only overrides variables for keys explicitly set in the file
+_load_yaml_config() {
+    local config_path="$1"
+
+    if [[ ! -f "$config_path" ]]; then
         return 0
     fi
 
     if ! command -v yq >/dev/null 2>&1; then
-        echo "Warning: yq not found, using built-in defaults. Install with: brew install yq" >&2
-        PROMPT_TEMPLATE="$DEFAULT_PROMPT"
         return 0
     fi
 
-    # Load prompt template
-    local prompt
-    prompt=$(yq eval '.prompt.template // ""' "$CONFIG_FILE" 2>/dev/null)
-    if [[ -n "$prompt" ]]; then
-        PROMPT_TEMPLATE="$prompt"
-    else
-        PROMPT_TEMPLATE="$DEFAULT_PROMPT"
+    local val
+
+    if val=$(yq eval '.prompt.template // ""' "$config_path" 2>/dev/null) && [[ -n "$val" ]]; then
+        PROMPT_TEMPLATE="$val"
     fi
 
-    # Load currency
-    local currency
-    currency=$(yq eval '.currency.base // ""' "$CONFIG_FILE" 2>/dev/null)
-    if [[ -n "$currency" ]]; then
-        BASE_CURRENCY="$currency"
+    if val=$(yq eval '.currency.base // ""' "$config_path" 2>/dev/null) && [[ -n "$val" ]]; then
+        BASE_CURRENCY="$val"
     fi
 
-    # Load API settings
-    local ollama_model
-    ollama_model=$(yq eval '.api.ollama.model // ""' "$CONFIG_FILE" 2>/dev/null)
-    if [[ -n "$ollama_model" ]]; then
-        OLLAMA_MODEL="$ollama_model"
+    if val=$(yq eval '.api.ollama.model // ""' "$config_path" 2>/dev/null) && [[ -n "$val" ]]; then
+        OLLAMA_MODEL="$val"
     fi
 
-    local openai_model
-    openai_model=$(yq eval '.api.openai.model // ""' "$CONFIG_FILE" 2>/dev/null)
-    if [[ -n "$openai_model" ]]; then
-        OPENAI_MODEL="$openai_model"
+    if val=$(yq eval '.api.openai.model // ""' "$config_path" 2>/dev/null) && [[ -n "$val" ]]; then
+        OPENAI_MODEL="$val"
     fi
 
-    local claude_model
-    claude_model=$(yq eval '.api.claude.model // ""' "$CONFIG_FILE" 2>/dev/null)
-    if [[ -n "$claude_model" ]]; then
-        CLAUDE_MODEL="$claude_model"
+    if val=$(yq eval '.api.claude.model // ""' "$config_path" 2>/dev/null) && [[ -n "$val" ]]; then
+        CLAUDE_MODEL="$val"
     fi
 
-    # Load API keys if present
-    local openai_key
-    openai_key=$(yq eval '.api.openai.key // ""' "$CONFIG_FILE" 2>/dev/null)
-    if [[ -n "$openai_key" ]]; then
-        export OPENAI_API_KEY="$openai_key"
+    if val=$(yq eval '.api.openai.key // ""' "$config_path" 2>/dev/null) && [[ -n "$val" ]]; then
+        export OPENAI_API_KEY="$val"
     fi
 
-    local claude_key
-    claude_key=$(yq eval '.api.claude.key // ""' "$CONFIG_FILE" 2>/dev/null)
-    if [[ -n "$claude_key" ]]; then
-        export CLAUDE_API_KEY="$claude_key"
+    if val=$(yq eval '.api.claude.key // ""' "$config_path" 2>/dev/null) && [[ -n "$val" ]]; then
+        export CLAUDE_API_KEY="$val"
     fi
 
-    # Load processing settings
-    local max_len
-    max_len=$(yq eval '.processing.max_content_length // ""' "$CONFIG_FILE" 2>/dev/null)
-    if [[ -n "$max_len" ]]; then
-        MAX_CONTENT_LENGTH="$max_len"
+    if val=$(yq eval '.processing.max_content_length // ""' "$config_path" 2>/dev/null) && [[ -n "$val" ]]; then
+        MAX_CONTENT_LENGTH="$val"
     fi
 
-    local timeout
-    timeout=$(yq eval '.api.ollama.timeout // ""' "$CONFIG_FILE" 2>/dev/null)
-    if [[ -n "$timeout" ]]; then
-        API_TIMEOUT="$timeout"
+    if val=$(yq eval '.api.ollama.timeout // ""' "$config_path" 2>/dev/null) && [[ -n "$val" ]]; then
+        API_TIMEOUT="$val"
     fi
 
-    # Load provider preference list
     local pref_count
-    pref_count=$(yq eval '.api.preference | length' "$CONFIG_FILE" 2>/dev/null)
-    if [[ -n "$pref_count" && "$pref_count" -gt 0 ]] 2>/dev/null; then
+    if pref_count=$(yq eval '.api.preference | length' "$config_path" 2>/dev/null) && [[ "$pref_count" =~ ^[0-9]+$ ]] && [[ "$pref_count" -gt 0 ]]; then
         PROVIDER_PREFERENCE=()
         local i=0
         while [[ $i -lt $pref_count ]]; do
             local provider
-            provider=$(yq eval ".api.preference[$i]" "$CONFIG_FILE" 2>/dev/null)
-            if [[ -n "$provider" ]]; then
+            if provider=$(yq eval ".api.preference[$i]" "$config_path" 2>/dev/null) && [[ -n "$provider" ]]; then
                 PROVIDER_PREFERENCE+=("$provider")
             fi
             i=$((i + 1))
         done
+    fi
+}
+
+# Load layered configuration: config.example.yaml -> user config -> emergency fallback
+load_config() {
+    local share_dir
+    share_dir="$(resolve_share_dir)"
+
+    # Layer 1: Load defaults from config.example.yaml (single source of truth)
+    _load_yaml_config "${share_dir}/config.example.yaml"
+
+    # Layer 2: Override with user config if present
+    if [[ -f "$CONFIG_FILE" ]]; then
+        _load_yaml_config "$CONFIG_FILE"
+    fi
+
+    # Warn if yq is not available
+    if ! command -v yq >/dev/null 2>&1; then
+        echo "Warning: yq not found, using built-in defaults. Install with: brew install yq" >&2
+    fi
+
+    # Emergency fallback: ensure prompt template is always set
+    if [[ -z "$PROMPT_TEMPLATE" ]]; then
+        PROMPT_TEMPLATE="Generate a concise, descriptive filename for the following content (excluding extension).
+The filename should be in lowercase, use hyphens to separate words, and avoid special characters.
+
+For receipts or invoices:
+- Format: YYYY-MM-DD-amount.cc-description
+- Amount always includes exactly two decimal places
+
+Content:
+{{CONTENT}}"
     fi
 }
 
