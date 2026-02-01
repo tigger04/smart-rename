@@ -132,10 +132,11 @@ load_config() {
     if [[ -z "$PROMPT_TEMPLATE" ]]; then
         PROMPT_TEMPLATE="Generate a concise, descriptive filename for the following content (excluding extension).
 The filename should be in lowercase, use hyphens to separate words, and avoid special characters.
-
-For receipts or invoices:
-- Format: YYYY-MM-DD-amount.cc-description
-- Amount always includes exactly two decimal places
+First, determine the type of document, then name it accordingly.
+General documents: descriptive-summary-of-content
+Documents with a clear date: YYYY-MM-DD-description
+ONLY for financial receipts/invoices with a clear monetary amount: YYYY-MM-DD-amount.cc-description
+Never fabricate dates, amounts, or currencies not present in the content.
 
 Content:
 {{CONTENT}}"
