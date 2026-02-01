@@ -1,0 +1,12 @@
+# Local config (reference file is config.example.yaml)
+config.yaml
+
+# macOS
+.DS_Store
+
+# Test artifacts
+test/tmp/
+test/*.log
+
+# Backup files from sed -i
+*.bak
