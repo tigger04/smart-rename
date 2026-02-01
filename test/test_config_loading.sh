@@ -86,6 +86,34 @@ assert_eq "config.example.yaml has 3 providers in preference" "3" "$pref_count"
 old_prompt=$(yq eval '.prompts.rename // ""' "$PROJECT_ROOT/config.example.yaml" 2>/dev/null)
 assert_eq "config.example.yaml does NOT use prompts.rename" "" "$old_prompt"
 
+# Prompt template has classification-first structure and never-fabricate guardrail
+if echo "$prompt_example" | grep -qi 'determine\|classify\|identify.*type'; then
+    echo "PASS: Prompt template requires document type classification"
+    passed=$((passed + 1))
+else
+    echo "FAIL: Prompt template should require document type classification"
+    failed=$((failed + 1))
+fi
+echo ""
+
+if echo "$prompt_example" | grep -qi 'never fabricate\|never invent\|do not invent\|do not fabricate'; then
+    echo "PASS: Prompt template has never-fabricate guardrail"
+    passed=$((passed + 1))
+else
+    echo "FAIL: Prompt template should have never-fabricate guardrail"
+    failed=$((failed + 1))
+fi
+echo ""
+
+if echo "$prompt_example" | grep -qi 'ONLY.*receipt\|only.*receipt'; then
+    echo "PASS: Prompt template gates receipt format conditionally"
+    passed=$((passed + 1))
+else
+    echo "FAIL: Prompt template should gate receipt format with ONLY condition"
+    failed=$((failed + 1))
+fi
+echo ""
+
 # --- Test 2: Defaults loaded from config.example.yaml, not hardcoded ---
 echo "--- Defaults come from config.example.yaml ---"
 echo ""

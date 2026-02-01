@@ -78,14 +78,16 @@ echo ""
 from_line=$(grep '^FROM ' "$MODELFILE" | head -1)
 assert_eq "FROM directive is qwen2.5:7b" "FROM qwen2.5:7b" "$from_line"
 
-# --- Test 4: Has SYSTEM prompt ---
+# --- Test 4: Has SYSTEM prompt with classification-first structure ---
 echo "--- SYSTEM prompt ---"
 echo ""
 assert_contains "Has SYSTEM directive" '^SYSTEM """' "$MODELFILE"
 assert_contains "System prompt mentions filenames" 'filename' "$MODELFILE"
-assert_contains "System prompt mentions lowercase" 'lowercase' "$MODELFILE"
-assert_contains "System prompt mentions receipts/invoices" 'receipts/invoices' "$MODELFILE"
-assert_contains "System prompt mentions decimal places" 'decimal places' "$MODELFILE"
+assert_contains "System prompt mentions lowercase" 'owercase' "$MODELFILE"
+assert_contains "System prompt requires document type classification" 'determine.*type\|classify\|identify.*type' "$MODELFILE"
+assert_contains "System prompt has never-fabricate guardrail" 'Never fabricate\|never fabricate\|Never invent\|never invent\|Do not invent' "$MODELFILE"
+assert_contains "System prompt has receipt pattern as conditional" 'ONLY.*receipt\|Only.*receipt' "$MODELFILE"
+assert_contains "System prompt mentions general document naming" 'eneral.*document\|non-receipt\|descriptive' "$MODELFILE"
 
 # --- Test 5: Has temperature parameter ---
 echo "--- PARAMETER settings ---"
