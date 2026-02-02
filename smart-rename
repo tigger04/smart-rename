@@ -142,7 +142,6 @@ load_config() {
     if [[ -z "$PROMPT_TEMPLATE" ]]; then
         PROMPT_TEMPLATE="Generate a concise, descriptive filename for this {{CATEGORY}} (excluding extension).
 Lowercase, hyphens between words. Be specific: preserve key names, dates, identifying details.
-If the document has a clear date, prefix with YYYY-MM-DD-description.
 Never fabricate information not present in the content.
 Output ONLY the filename, nothing else.
 
