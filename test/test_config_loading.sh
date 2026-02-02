@@ -274,6 +274,9 @@ eval "\$(sed -n '/^_load_yaml_config()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
 eval "\$(sed -n '/^resolve_share_dir()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
 eval "\$(sed -n '/^load_config()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
 
+# Override resolve_share_dir to prevent fallthrough to system-installed configs
+resolve_share_dir() { echo "\$SMART_RENAME_SHARE_DIR"; }
+
 load_config
 echo "OLLAMA=\$OLLAMA_MODEL"
 echo "OPENAI=\$OPENAI_MODEL"
