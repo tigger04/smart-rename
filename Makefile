@@ -45,6 +45,8 @@ test:
 	@./test/test_modelfile.sh
 	@echo "Running classification tests..."
 	@./test/test_classification.sh
+	@echo "Running config CLI tests..."
+	@./test/test_config_cli.sh
 	@echo "Running Nix packaging tests..."
 	@./test/test_nix_build.sh
 	@echo "All tests passed!"

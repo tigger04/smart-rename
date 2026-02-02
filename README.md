@@ -124,8 +124,8 @@ The first provider that is available and responds successfully is used.
 To customise behaviour, create a config file:
 
 ```bash
-# Copy the reference config
-cp $(brew --prefix)/share/smart-rename/config.example.yaml ~/.config/smart-rename/config.yaml
+# Print the reference config and pipe to your config location
+smart-rename --example-config > ~/.config/smart-rename/config.yaml
 
 # Edit to taste
 nano ~/.config/smart-rename/config.yaml
@@ -222,6 +222,9 @@ smart-rename -g "*.pdf"
 ### Rename Options
 - `-y, --yes`: Auto-rename without confirmation
 
+### Configuration
+- `--example-config`: Print the reference config to stdout and exit
+
 ### Info
 - `-h, --help`: Show help message
 - `-v, --version`: Show version
@@ -229,14 +232,14 @@ smart-rename -g "*.pdf"
 ## Filename Format
 
 ### Regular Documents
-- Format: `descriptive-name-YY-MM-DD.ext`
-- Uses current date if not found in content
+- Format: `descriptive-name.ext`
+- Concise, descriptive names based on content
 
 ### Receipts/Invoices
-- Format: `YYYY-MM-DD-amount.cc-description.ext` (amount always includes two decimal places)
+- Format: `YYYY-MM-DD-amount-description.ext` (amount always includes two decimal places)
 - Examples: `2024-01-15-123.45-office-supplies.pdf`, `2024-02-28-100.00-monthly-subscription.pdf`
-- Amount in base currency (base currency configurable, default EUR)
-- Non-base currency: `YYYY-MM-DD-CUR-amount.cc-description.ext` where CUR is the ISO currency code.
+- Base currency (default EUR) omits currency code
+- Non-base currency: `YYYY-MM-DD-CUR-amount-description.ext` where CUR is the lowercase ISO currency code.
 
 ### Abbreviations (Configurable)
 The tool comes with a few example abbreviations, adjust to your own needs in `config.yaml`
@@ -255,6 +258,7 @@ The tool comes with a few example abbreviations, adjust to your own needs in `co
 | `smart-rename.Modelfile` | Ollama model definition |
 | `Makefile` | Build, test, release automation |
 | `summarize-text-lib.sh` | Legacy text summarisation library |
+| `test/test_config_cli.sh` | Tests for --example-config and stale config detection |
 | `docs/architecture.md` | Architecture and design decisions |
 | `docs/vision.md` | Project vision and goals |
 | `HOMEBREW.md` | Homebrew formula management |

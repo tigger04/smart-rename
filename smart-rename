@@ -130,6 +130,14 @@ load_config() {
 
     # Layer 2: Override with user config if present
     if [[ -f "$CONFIG_FILE" ]]; then
+        # Detect stale config schema (pre-v5.23.2 used prompts.rename instead of prompt.template)
+        if command -v yq >/dev/null 2>&1; then
+            local old_key
+            if old_key=$(yq eval '.prompts.rename // ""' "$CONFIG_FILE" 2>/dev/null) && [[ -n "$old_key" ]]; then
+                echo "Warning: $CONFIG_FILE uses an outdated schema (prompts.rename)." >&2
+                echo "  Run: $SCRIPT_NAME --example-config > $CONFIG_FILE" >&2
+            fi
+        fi
         _load_yaml_config "$CONFIG_FILE"
     fi
 
@@ -579,11 +587,10 @@ OPTIONS:
   -g, --glob        Use glob pattern instead of regex
 
 CONFIGURATION:
-  Defaults are built in. Optionally create ~/.config/smart-rename/config.yaml
-  to override prompts, provider order, models, or API keys.
+  --example-config  Print the reference config to stdout and exit
 
-  A reference config is installed to:
-    \$(brew --prefix)/share/smart-rename/config.example.yaml
+  Defaults are built in. To customise, create a config file:
+    $SCRIPT_NAME --example-config > ~/.config/smart-rename/config.yaml
 
 EXAMPLES:
   $SCRIPT_NAME 'scan.*\.pdf'        # Find files matching regex
@@ -614,6 +621,17 @@ while [[ $# -gt 0 ]]; do
             ;;
         -v|--version)
             echo "$SCRIPT_NAME $VERSION"
+            exit 0
+            ;;
+        --example-config)
+            _share_dir="$(resolve_share_dir)"
+            _example_file="${_share_dir}/config.example.yaml"
+            if [[ -f "$_example_file" ]]; then
+                cat "$_example_file"
+            else
+                echo "Error: config.example.yaml not found in $_share_dir" >&2
+                exit 1
+            fi
             exit 0
             ;;
         -y|--yes)
