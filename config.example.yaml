@@ -68,12 +68,12 @@ api:
     # url: http://localhost:11434  # Uncomment to use remote Ollama
 
   openai:
-    model: gpt-4o
+    model: gpt-4o-mini
     # API key — can be set here or as OPENAI_API_KEY environment variable
     # key: sk-...
 
   claude:
-    model: claude-3-5-sonnet-20241022
+    model: claude-haiku-4-5-20251001
     # API key — can be set here or as CLAUDE_API_KEY environment variable
     # key: sk-ant-...
 
