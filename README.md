@@ -46,7 +46,13 @@ That looks satisfactory to me, so the file will now be called `2026-01-15-54.97-
 ## Supported File Types
 
 ### Currently Supported
-- [x] PDF documents
+- [x] PDF documents (with OCR fallback for scanned PDFs)
+- [x] Microsoft Word documents (DOC, DOCX)
+- [x] Microsoft Excel spreadsheets (XLSX)
+- [x] Microsoft PowerPoint presentations (PPTX)
+- [x] RTF documents
+- [x] OpenDocument formats (ODT, ODS, ODP)
+- [x] Email files (EML, MSG)
 - [x] Images (JPG, PNG, JPEG)
 - [x] Text files (TXT)
 - [x] Markdown files (MD)
@@ -58,12 +64,6 @@ That looks satisfactory to me, so the file will now be called `2026-01-15-54.97-
 - [x] Source code files (any plaintext)
 
 ### On the Roadmap
-- [ ] Microsoft Word documents (DOCX)
-- [ ] Microsoft Excel spreadsheets (XLSX) - with data analysis
-- [ ] Microsoft PowerPoint presentations (PPTX)
-- [ ] RTF documents
-- [ ] OpenDocument formats (ODT, ODS, ODP)
-- [ ] Email files (EML, MSG)
 - [ ] Video files (MP4, MOV) - extract first frame
 
 ## Quick Start
@@ -79,10 +79,13 @@ The following are installed automatically via Homebrew:
 - `fd` - fast file finder
 - `yq` - YAML parser
 - `jq` - JSON parser
-- `poppler` - PDF text extraction (provides `pdftotext`)
+- `poppler` - PDF text extraction (provides `pdftotext` and `pdftoppm`)
+- `pandoc` - document conversion (DOCX, XLSX, PPTX, RTF, ODT/ODS/ODP)
 
 Optional:
 - `ollama` - for local AI (default provider); install with `brew install ollama`
+- `tesseract` - OCR for scanned PDFs; install with `brew install tesseract`
+- `msgconvert` - Outlook MSG support (Perl `Email::Outlook::Message`)
 
 ### NixOS/Nix
 ```bash
@@ -259,6 +262,7 @@ The tool comes with a few example abbreviations, adjust to your own needs in `co
 | `Makefile` | Build, test, release automation |
 | `summarize-text-lib.sh` | Legacy text summarisation library |
 | `test/test_config_cli.sh` | Tests for --example-config and stale config detection |
+| `test/test_file_formats.sh` | Tests for all file format extraction (PDF OCR, DOCX, XLSX, etc.) |
 | `docs/architecture.md` | Architecture and design decisions |
 | `docs/vision.md` | Project vision and goals |
 | `HOMEBREW.md` | Homebrew formula management |

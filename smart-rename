@@ -405,20 +405,160 @@ process_file() {
 
     case "$extension" in
         pdf)
-            # Try to extract text from PDF
+            # Try pdftotext first, fall back to OCR for scanned documents
             if ! command -v pdftotext >/dev/null 2>&1; then
                 echo "Error: pdftotext not found. Install poppler for PDF support:" >&2
                 echo "  brew install poppler" >&2
                 return 1
             fi
-            local pdf_error
-            pdf_error=$(pdftotext "$file" - 2>&1 >/dev/null) || true
-            if [[ -n "$pdf_error" ]]; then
-                echo "Error extracting text from PDF: $file" >&2
-                echo "  $pdf_error" >&2
+            content=$(pdftotext "$file" - 2>/dev/null | head -c "$MAX_CONTENT_LENGTH")
+            # Check if we got meaningful text (more than 50 chars, not just whitespace)
+            local trimmed
+            trimmed=$(echo "$content" | tr -d '[:space:]')
+            if [[ ${#trimmed} -lt 50 ]]; then
+                # Scanned PDF — try OCR via tesseract + pdftoppm
+                if command -v tesseract >/dev/null 2>&1 && command -v pdftoppm >/dev/null 2>&1; then
+                    echo "Scanned PDF detected, using OCR..." >&2
+                    local ocr_tmp
+                    ocr_tmp=$(mktemp -d)
+                    if pdftoppm -png -f 1 -l 1 -r 300 "$file" "${ocr_tmp}/page" 2>/dev/null; then
+                        local ocr_img
+                        ocr_img=$(ls "${ocr_tmp}"/page-*.png 2>/dev/null | head -1)
+                        if [[ -n "$ocr_img" ]]; then
+                            content=$(tesseract "$ocr_img" stdout 2>/dev/null | head -c "$MAX_CONTENT_LENGTH")
+                        fi
+                    fi
+                    rm -rf "$ocr_tmp"
+                fi
+            fi
+            ;;
+        docx|doc)
+            # Microsoft Word — pandoc with unzip/xmllint fallback for DOCX
+            if command -v pandoc >/dev/null 2>&1; then
+                content=$(pandoc --to=plain --wrap=none "$file" 2>/dev/null | head -c "$MAX_CONTENT_LENGTH")
+            elif [[ "$extension" == "docx" ]]; then
+                # DOCX is a ZIP archive — extract text from word/document.xml
+                local docx_tmp
+                docx_tmp=$(mktemp -d)
+                if unzip -q "$file" -d "$docx_tmp" 2>/dev/null; then
+                    if [[ -f "$docx_tmp/word/document.xml" ]]; then
+                        content=$(xmllint --format "$docx_tmp/word/document.xml" 2>/dev/null | \
+                            sed 's/<[^>]*>//g' | tr -s ' \n' ' ' | head -c "$MAX_CONTENT_LENGTH")
+                    fi
+                fi
+                rm -rf "$docx_tmp"
+            else
+                echo "Error: .doc files require pandoc. Install with: brew install pandoc" >&2
                 return 1
             fi
-            content=$(pdftotext "$file" - 2>/dev/null | head -c "$MAX_CONTENT_LENGTH" || true)
+            ;;
+        xlsx)
+            # Microsoft Excel — pandoc with unzip/xmllint fallback
+            if command -v pandoc >/dev/null 2>&1; then
+                content=$(pandoc --to=plain --wrap=none "$file" 2>/dev/null | head -c "$MAX_CONTENT_LENGTH")
+            else
+                # XLSX is a ZIP archive — extract sheet names and shared strings
+                local xlsx_tmp
+                xlsx_tmp=$(mktemp -d)
+                if unzip -q "$file" -d "$xlsx_tmp" 2>/dev/null; then
+                    local xlsx_content=""
+                    if [[ -f "$xlsx_tmp/xl/workbook.xml" ]]; then
+                        xlsx_content+="Sheets: $(xmllint --format "$xlsx_tmp/xl/workbook.xml" 2>/dev/null | \
+                            grep -o 'name="[^"]*"' | sed 's/name="//;s/"//' | head -5 | tr '\n' ' ') "
+                    fi
+                    if [[ -f "$xlsx_tmp/xl/sharedStrings.xml" ]]; then
+                        xlsx_content+="Content: $(xmllint --format "$xlsx_tmp/xl/sharedStrings.xml" 2>/dev/null | \
+                            sed 's/<[^>]*>//g' | tr -s ' \n' ' ' | head -c "$MAX_CONTENT_LENGTH")"
+                    fi
+                    content="$xlsx_content"
+                fi
+                rm -rf "$xlsx_tmp"
+            fi
+            ;;
+        pptx)
+            # Microsoft PowerPoint — pandoc with unzip/xmllint fallback
+            if command -v pandoc >/dev/null 2>&1; then
+                content=$(pandoc --to=plain --wrap=none "$file" 2>/dev/null | head -c "$MAX_CONTENT_LENGTH")
+            else
+                # PPTX is a ZIP archive — extract slide text
+                local pptx_tmp
+                pptx_tmp=$(mktemp -d)
+                if unzip -q "$file" -d "$pptx_tmp" 2>/dev/null; then
+                    local pptx_content=""
+                    for slide in "$pptx_tmp"/ppt/slides/slide*.xml; do
+                        [[ -f "$slide" ]] || continue
+                        pptx_content+="$(xmllint --format "$slide" 2>/dev/null | \
+                            sed 's/<[^>]*>//g' | tr -s ' \n' ' ' | head -c 500) "
+                    done
+                    content=$(echo "$pptx_content" | head -c "$MAX_CONTENT_LENGTH")
+                fi
+                rm -rf "$pptx_tmp"
+            fi
+            ;;
+        rtf)
+            # Rich Text Format — pandoc with sed fallback
+            if command -v pandoc >/dev/null 2>&1; then
+                content=$(pandoc --to=plain --wrap=none "$file" 2>/dev/null | head -c "$MAX_CONTENT_LENGTH")
+            else
+                # Strip RTF control codes to extract plain text
+                content=$(sed 's/{[^}]*}//g; s/\\[a-z]*[0-9]*//g; s/\\[^a-zA-Z]//g' "$file" | \
+                    tr -s ' \n' ' ' | head -c "$MAX_CONTENT_LENGTH")
+            fi
+            ;;
+        odt|ods|odp)
+            # OpenDocument formats — pandoc with unzip/xmllint fallback
+            if command -v pandoc >/dev/null 2>&1; then
+                content=$(pandoc --to=plain --wrap=none "$file" 2>/dev/null | head -c "$MAX_CONTENT_LENGTH")
+            else
+                # ODF files are ZIP archives — extract content.xml
+                local odf_tmp
+                odf_tmp=$(mktemp -d)
+                if unzip -q "$file" -d "$odf_tmp" 2>/dev/null; then
+                    local odf_content=""
+                    if [[ -f "$odf_tmp/meta.xml" ]]; then
+                        local odf_title
+                        odf_title=$(xmllint --format "$odf_tmp/meta.xml" 2>/dev/null | \
+                            sed -n 's/.*<dc:title>\(.*\)<\/dc:title>.*/\1/p' | head -1)
+                        if [[ -n "$odf_title" ]]; then
+                            odf_content+="Title: $odf_title "
+                        fi
+                    fi
+                    if [[ -f "$odf_tmp/content.xml" ]]; then
+                        odf_content+="$(xmllint --format "$odf_tmp/content.xml" 2>/dev/null | \
+                            sed 's/<[^>]*>//g' | tr -s ' \n' ' ' | head -c "$MAX_CONTENT_LENGTH")"
+                    fi
+                    content="$odf_content"
+                fi
+                rm -rf "$odf_tmp"
+            fi
+            ;;
+        eml)
+            # Email files (RFC 2822 format) — parse headers and body
+            local eml_subject eml_from eml_date eml_body
+            eml_subject=$(grep -i "^Subject:" "$file" | head -1 | sed 's/^[Ss]ubject: *//')
+            eml_from=$(grep -i "^From:" "$file" | head -1 | sed 's/^[Ff]rom: *//' | sed 's/<.*>//')
+            eml_date=$(grep -i "^Date:" "$file" | head -1 | sed 's/^[Dd]ate: *//')
+            eml_body=$(awk '/^$/{p=1; next} p{print}' "$file" | head -c "$MAX_CONTENT_LENGTH")
+            content="Subject: ${eml_subject} From: ${eml_from} Date: ${eml_date} Body: ${eml_body}"
+            ;;
+        msg)
+            # Outlook MSG files — require msgconvert to convert to EML first
+            if command -v msgconvert >/dev/null 2>&1; then
+                local msg_tmp
+                msg_tmp=$(mktemp)
+                if msgconvert --outfile="$msg_tmp" "$file" 2>/dev/null; then
+                    local msg_subject msg_from msg_date msg_body
+                    msg_subject=$(grep -i "^Subject:" "$msg_tmp" | head -1 | sed 's/^[Ss]ubject: *//')
+                    msg_from=$(grep -i "^From:" "$msg_tmp" | head -1 | sed 's/^[Ff]rom: *//' | sed 's/<.*>//')
+                    msg_date=$(grep -i "^Date:" "$msg_tmp" | head -1 | sed 's/^[Dd]ate: *//')
+                    msg_body=$(awk '/^$/{p=1; next} p{print}' "$msg_tmp" | head -c "$MAX_CONTENT_LENGTH")
+                    content="Subject: ${msg_subject} From: ${msg_from} Date: ${msg_date} Body: ${msg_body}"
+                fi
+                rm -f "$msg_tmp"
+            else
+                echo "Error: .msg files require msgconvert. Install with: cpan Email::Outlook::Message" >&2
+                return 1
+            fi
             ;;
         jpg|jpeg|png|gif|bmp|tiff|webp)
             # For images, we'd need vision API support
