@@ -36,12 +36,14 @@ prompt:
     Generate a filename for this {{CATEGORY}} (excluding extension).
     Format: YYYY-MM-DD-amount-description
     The amount must include exactly two decimal places (e.g. 124.50).
-    For {{BASE_CURRENCY}} transactions, omit the currency code.
-    For other currencies, prefix the amount with the lowercase currency code.
-    Examples (assuming base currency is {{BASE_CURRENCY}}):
-      - {{BASE_CURRENCY}} receipt: 2026-01-31-124.50-shower-bench
-      - USD receipt: 2026-01-31-usd-124.50-shower-bench
-      - GBP receipt: 2026-01-31-gbp-89.99-office-supplies
+    IMPORTANT: Do NOT include a currency code unless the receipt explicitly
+    shows a non-{{BASE_CURRENCY}} currency. Most receipts will have no currency code.
+    Only if the currency is NOT {{BASE_CURRENCY}}, prefix the amount with the
+    lowercase currency code (e.g. usd, gbp).
+    Examples:
+      2026-01-31-124.50-shower-bench
+      2026-01-31-7.99-ups-package
+      2026-01-31-usd-49.00-amazon-order (only because currency is USD, not {{BASE_CURRENCY}})
     Lowercase, hyphens. Output ONLY the filename, nothing else.
 
     Content:
