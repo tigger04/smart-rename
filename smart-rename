@@ -141,7 +141,7 @@ load_config() {
     # Emergency fallback: ensure prompt templates are always set
     if [[ -z "$PROMPT_TEMPLATE" ]]; then
         PROMPT_TEMPLATE="Generate a concise, descriptive filename for this {{CATEGORY}} (excluding extension).
-Lowercase, hyphens between words. Be specific: preserve key names, dates, identifying details.
+Lowercase, hyphens between words. Be specific: preserve key names and identifying details.
 Never fabricate information not present in the content.
 Output ONLY the filename, nothing else.
 
@@ -161,8 +161,11 @@ Content:
 
     if [[ -z "$RECEIPT_PROMPT" ]]; then
         RECEIPT_PROMPT="Generate a filename for this {{CATEGORY}} (excluding extension).
-Format: YYYY-MM-DD-amount.cc-description
-Amount always includes exactly two decimal places.
+Format: YYYY-MM-DD-amount-description
+The amount must include exactly two decimal places (e.g. 124.50).
+For EUR transactions, omit the currency code.
+For other currencies, prefix the amount with the lowercase currency code.
+Examples: 2026-01-31-124.50-shower-bench, 2026-01-31-usd-89.99-office-supplies
 Lowercase, hyphens. Output ONLY the filename, nothing else.
 
 Content:
