@@ -267,14 +267,18 @@ try_ollama() {
 
     local temp_output
     temp_output=$(mktemp)
-    timeout "$API_TIMEOUT" ollama run "$OLLAMA_MODEL" < "$temp_prompt" > "$temp_output" 2>&1 || true
+    if ! timeout "$API_TIMEOUT" ollama run "$OLLAMA_MODEL" < "$temp_prompt" > "$temp_output" 2>&1; then
+        echo "Warning: Ollama request timed out or failed (timeout=${API_TIMEOUT}s)" >&2
+    fi
     local ollama_response
-    ollama_response=$(sed 's/\x1b\[[0-9;]*[mGKHJ]//g' "$temp_output" | \
+    if ! ollama_response=$(sed 's/\x1b\[[0-9;]*[mGKHJ]//g' "$temp_output" | \
         sed 's/\[?[0-9]*[hl]//g' | \
         tr -d '\r' | \
         sed '/^$/d' | \
         grep -v '^\[' | \
-        head -1) || true
+        head -1); then
+        ollama_response=""
+    fi
     rm -f "$temp_output" "$temp_prompt"
 
     if [[ -n "$ollama_response" ]] && [[ ! "$ollama_response" =~ "Error" ]]; then
@@ -306,10 +310,13 @@ try_openai() {
     }')
 
     local response
-    response=$(curl -s --max-time "$API_TIMEOUT" https://api.openai.com/v1/chat/completions \
+    if ! response=$(curl -s --max-time "$API_TIMEOUT" https://api.openai.com/v1/chat/completions \
         -H "Authorization: Bearer $OPENAI_API_KEY" \
         -H "Content-Type: application/json" \
-        -d "$json_payload" | jq -r '.choices[0].message.content // empty' | head -1) || true
+        -d "$json_payload" | jq -r '.choices[0].message.content // empty' | head -1); then
+        echo "Warning: OpenAI API request failed" >&2
+        response=""
+    fi
 
     if [[ -n "$response" ]]; then
         echo "Got response from OpenAI" >&2
@@ -337,11 +344,14 @@ try_claude() {
     }')
 
     local response
-    response=$(curl -s --max-time "$API_TIMEOUT" https://api.anthropic.com/v1/messages \
+    if ! response=$(curl -s --max-time "$API_TIMEOUT" https://api.anthropic.com/v1/messages \
         -H "x-api-key: $CLAUDE_API_KEY" \
         -H "anthropic-version: 2023-06-01" \
         -H "content-type: application/json" \
-        -d "$json_payload" | jq -r '.content[0].text // empty' | head -1) || true
+        -d "$json_payload" | jq -r '.content[0].text // empty' | head -1); then
+        echo "Warning: Claude API request failed" >&2
+        response=""
+    fi
 
     if [[ -n "$response" ]]; then
         echo "Got response from Claude" >&2
@@ -411,7 +421,10 @@ process_file() {
                 echo "  brew install poppler" >&2
                 return 1
             fi
-            content=$(pdftotext "$file" - 2>/dev/null | head -c "$MAX_CONTENT_LENGTH")
+            if ! content=$(pdftotext "$file" - 2>/dev/null | head -c "$MAX_CONTENT_LENGTH"); then
+                echo "Warning: pdftotext failed to extract text from: $file" >&2
+                content=""
+            fi
             # Check if we got meaningful text (more than 50 chars, not just whitespace)
             local trimmed
             trimmed=$(echo "$content" | tr -d '[:space:]')
@@ -425,26 +438,46 @@ process_file() {
                         local ocr_img
                         ocr_img=$(ls "${ocr_tmp}"/page-*.png 2>/dev/null | head -1)
                         if [[ -n "$ocr_img" ]]; then
-                            content=$(tesseract "$ocr_img" stdout 2>/dev/null | head -c "$MAX_CONTENT_LENGTH")
+                            if ! content=$(tesseract "$ocr_img" stdout 2>/dev/null | head -c "$MAX_CONTENT_LENGTH"); then
+                                echo "Warning: OCR (tesseract) failed for: $file" >&2
+                                content=""
+                            fi
+                        else
+                            echo "Warning: PDF page rendering produced no image for: $file" >&2
                         fi
+                    else
+                        echo "Warning: PDF page rendering (pdftoppm) failed for: $file" >&2
                     fi
                     rm -rf "$ocr_tmp"
+                else
+                    echo "Warning: PDF appears scanned but tesseract/pdftoppm not available for OCR" >&2
+                    echo "  Install with: brew install tesseract poppler" >&2
                 fi
             fi
             ;;
         docx|doc)
             # Microsoft Word — pandoc with unzip/xmllint fallback for DOCX
             if command -v pandoc >/dev/null 2>&1; then
-                content=$(pandoc --to=plain --wrap=none "$file" 2>/dev/null | head -c "$MAX_CONTENT_LENGTH")
+                if ! content=$(pandoc --to=plain --wrap=none "$file" 2>/dev/null | head -c "$MAX_CONTENT_LENGTH"); then
+                    echo "Warning: pandoc failed to extract text from: $file" >&2
+                    content=""
+                fi
             elif [[ "$extension" == "docx" ]]; then
                 # DOCX is a ZIP archive — extract text from word/document.xml
                 local docx_tmp
                 docx_tmp=$(mktemp -d)
                 if unzip -q "$file" -d "$docx_tmp" 2>/dev/null; then
                     if [[ -f "$docx_tmp/word/document.xml" ]]; then
-                        content=$(xmllint --format "$docx_tmp/word/document.xml" 2>/dev/null | \
-                            sed 's/<[^>]*>//g' | tr -s ' \n' ' ' | head -c "$MAX_CONTENT_LENGTH")
+                        if ! content=$(xmllint --format "$docx_tmp/word/document.xml" 2>/dev/null | \
+                            sed 's/<[^>]*>//g' | tr -s ' \n' ' ' | head -c "$MAX_CONTENT_LENGTH"); then
+                            echo "Warning: xmllint failed to parse DOCX content from: $file" >&2
+                            content=""
+                        fi
+                    else
+                        echo "Warning: DOCX archive missing word/document.xml: $file" >&2
                     fi
+                else
+                    echo "Warning: Failed to unzip DOCX file: $file" >&2
                 fi
                 rm -rf "$docx_tmp"
             else
@@ -455,7 +488,10 @@ process_file() {
         xlsx)
             # Microsoft Excel — pandoc with unzip/xmllint fallback
             if command -v pandoc >/dev/null 2>&1; then
-                content=$(pandoc --to=plain --wrap=none "$file" 2>/dev/null | head -c "$MAX_CONTENT_LENGTH")
+                if ! content=$(pandoc --to=plain --wrap=none "$file" 2>/dev/null | head -c "$MAX_CONTENT_LENGTH"); then
+                    echo "Warning: pandoc failed to extract text from: $file" >&2
+                    content=""
+                fi
             else
                 # XLSX is a ZIP archive — extract sheet names and shared strings
                 local xlsx_tmp
@@ -463,14 +499,22 @@ process_file() {
                 if unzip -q "$file" -d "$xlsx_tmp" 2>/dev/null; then
                     local xlsx_content=""
                     if [[ -f "$xlsx_tmp/xl/workbook.xml" ]]; then
-                        xlsx_content+="Sheets: $(xmllint --format "$xlsx_tmp/xl/workbook.xml" 2>/dev/null | \
-                            grep -o 'name="[^"]*"' | sed 's/name="//;s/"//' | head -5 | tr '\n' ' ') "
+                        local sheet_names
+                        if sheet_names=$(xmllint --format "$xlsx_tmp/xl/workbook.xml" 2>/dev/null | \
+                            grep -o 'name="[^"]*"' | sed 's/name="//;s/"//' | head -5 | tr '\n' ' '); then
+                            xlsx_content+="Sheets: ${sheet_names} "
+                        fi
                     fi
                     if [[ -f "$xlsx_tmp/xl/sharedStrings.xml" ]]; then
-                        xlsx_content+="Content: $(xmllint --format "$xlsx_tmp/xl/sharedStrings.xml" 2>/dev/null | \
-                            sed 's/<[^>]*>//g' | tr -s ' \n' ' ' | head -c "$MAX_CONTENT_LENGTH")"
+                        local shared_strings
+                        if shared_strings=$(xmllint --format "$xlsx_tmp/xl/sharedStrings.xml" 2>/dev/null | \
+                            sed 's/<[^>]*>//g' | tr -s ' \n' ' ' | head -c "$MAX_CONTENT_LENGTH"); then
+                            xlsx_content+="Content: ${shared_strings}"
+                        fi
                     fi
                     content="$xlsx_content"
+                else
+                    echo "Warning: Failed to unzip XLSX file: $file" >&2
                 fi
                 rm -rf "$xlsx_tmp"
             fi
@@ -478,7 +522,10 @@ process_file() {
         pptx)
             # Microsoft PowerPoint — pandoc with unzip/xmllint fallback
             if command -v pandoc >/dev/null 2>&1; then
-                content=$(pandoc --to=plain --wrap=none "$file" 2>/dev/null | head -c "$MAX_CONTENT_LENGTH")
+                if ! content=$(pandoc --to=plain --wrap=none "$file" 2>/dev/null | head -c "$MAX_CONTENT_LENGTH"); then
+                    echo "Warning: pandoc failed to extract text from: $file" >&2
+                    content=""
+                fi
             else
                 # PPTX is a ZIP archive — extract slide text
                 local pptx_tmp
@@ -487,10 +534,15 @@ process_file() {
                     local pptx_content=""
                     for slide in "$pptx_tmp"/ppt/slides/slide*.xml; do
                         [[ -f "$slide" ]] || continue
-                        pptx_content+="$(xmllint --format "$slide" 2>/dev/null | \
-                            sed 's/<[^>]*>//g' | tr -s ' \n' ' ' | head -c 500) "
+                        local slide_text
+                        if slide_text=$(xmllint --format "$slide" 2>/dev/null | \
+                            sed 's/<[^>]*>//g' | tr -s ' \n' ' ' | head -c 500); then
+                            pptx_content+="${slide_text} "
+                        fi
                     done
                     content=$(echo "$pptx_content" | head -c "$MAX_CONTENT_LENGTH")
+                else
+                    echo "Warning: Failed to unzip PPTX file: $file" >&2
                 fi
                 rm -rf "$pptx_tmp"
             fi
@@ -498,17 +550,26 @@ process_file() {
         rtf)
             # Rich Text Format — pandoc with sed fallback
             if command -v pandoc >/dev/null 2>&1; then
-                content=$(pandoc --to=plain --wrap=none "$file" 2>/dev/null | head -c "$MAX_CONTENT_LENGTH")
+                if ! content=$(pandoc --to=plain --wrap=none "$file" 2>/dev/null | head -c "$MAX_CONTENT_LENGTH"); then
+                    echo "Warning: pandoc failed to extract text from: $file" >&2
+                    content=""
+                fi
             else
                 # Strip RTF control codes to extract plain text
-                content=$(sed 's/{[^}]*}//g; s/\\[a-z]*[0-9]*//g; s/\\[^a-zA-Z]//g' "$file" | \
-                    tr -s ' \n' ' ' | head -c "$MAX_CONTENT_LENGTH")
+                if ! content=$(sed 's/{[^}]*}//g; s/\\[a-z]*[0-9]*//g; s/\\[^a-zA-Z]//g' "$file" | \
+                    tr -s ' \n' ' ' | head -c "$MAX_CONTENT_LENGTH"); then
+                    echo "Warning: Failed to extract text from RTF file: $file" >&2
+                    content=""
+                fi
             fi
             ;;
         odt|ods|odp)
             # OpenDocument formats — pandoc with unzip/xmllint fallback
             if command -v pandoc >/dev/null 2>&1; then
-                content=$(pandoc --to=plain --wrap=none "$file" 2>/dev/null | head -c "$MAX_CONTENT_LENGTH")
+                if ! content=$(pandoc --to=plain --wrap=none "$file" 2>/dev/null | head -c "$MAX_CONTENT_LENGTH"); then
+                    echo "Warning: pandoc failed to extract text from: $file" >&2
+                    content=""
+                fi
             else
                 # ODF files are ZIP archives — extract content.xml
                 local odf_tmp
@@ -517,17 +578,23 @@ process_file() {
                     local odf_content=""
                     if [[ -f "$odf_tmp/meta.xml" ]]; then
                         local odf_title
-                        odf_title=$(xmllint --format "$odf_tmp/meta.xml" 2>/dev/null | \
-                            sed -n 's/.*<dc:title>\(.*\)<\/dc:title>.*/\1/p' | head -1)
-                        if [[ -n "$odf_title" ]]; then
-                            odf_content+="Title: $odf_title "
+                        if odf_title=$(xmllint --format "$odf_tmp/meta.xml" 2>/dev/null | \
+                            sed -n 's/.*<dc:title>\(.*\)<\/dc:title>.*/\1/p' | head -1); then
+                            if [[ -n "$odf_title" ]]; then
+                                odf_content+="Title: $odf_title "
+                            fi
                         fi
                     fi
                     if [[ -f "$odf_tmp/content.xml" ]]; then
-                        odf_content+="$(xmllint --format "$odf_tmp/content.xml" 2>/dev/null | \
-                            sed 's/<[^>]*>//g' | tr -s ' \n' ' ' | head -c "$MAX_CONTENT_LENGTH")"
+                        local odf_body
+                        if odf_body=$(xmllint --format "$odf_tmp/content.xml" 2>/dev/null | \
+                            sed 's/<[^>]*>//g' | tr -s ' \n' ' ' | head -c "$MAX_CONTENT_LENGTH"); then
+                            odf_content+="$odf_body"
+                        fi
                     fi
                     content="$odf_content"
+                else
+                    echo "Warning: Failed to unzip ODF file: $file" >&2
                 fi
                 rm -rf "$odf_tmp"
             fi
@@ -535,10 +602,15 @@ process_file() {
         eml)
             # Email files (RFC 2822 format) — parse headers and body
             local eml_subject eml_from eml_date eml_body
-            eml_subject=$(grep -i "^Subject:" "$file" | head -1 | sed 's/^[Ss]ubject: *//')
-            eml_from=$(grep -i "^From:" "$file" | head -1 | sed 's/^[Ff]rom: *//' | sed 's/<.*>//')
-            eml_date=$(grep -i "^Date:" "$file" | head -1 | sed 's/^[Dd]ate: *//')
-            eml_body=$(awk '/^$/{p=1; next} p{print}' "$file" | head -c "$MAX_CONTENT_LENGTH")
+            eml_subject=$(grep -i "^Subject:" "$file" 2>/dev/null | head -1 | sed 's/^[Ss]ubject: *//') || eml_subject=""
+            eml_from=$(grep -i "^From:" "$file" 2>/dev/null | head -1 | sed 's/^[Ff]rom: *//' | sed 's/<.*>//') || eml_from=""
+            eml_date=$(grep -i "^Date:" "$file" 2>/dev/null | head -1 | sed 's/^[Dd]ate: *//') || eml_date=""
+            if ! eml_body=$(awk '/^$/{p=1; next} p{print}' "$file" | head -c "$MAX_CONTENT_LENGTH"); then
+                eml_body=""
+            fi
+            if [[ -z "$eml_subject" ]] && [[ -z "$eml_from" ]] && [[ -z "$eml_date" ]]; then
+                echo "Warning: No RFC 2822 headers found in: $file" >&2
+            fi
             content="Subject: ${eml_subject} From: ${eml_from} Date: ${eml_date} Body: ${eml_body}"
             ;;
         msg)
@@ -548,11 +620,15 @@ process_file() {
                 msg_tmp=$(mktemp)
                 if msgconvert --outfile="$msg_tmp" "$file" 2>/dev/null; then
                     local msg_subject msg_from msg_date msg_body
-                    msg_subject=$(grep -i "^Subject:" "$msg_tmp" | head -1 | sed 's/^[Ss]ubject: *//')
-                    msg_from=$(grep -i "^From:" "$msg_tmp" | head -1 | sed 's/^[Ff]rom: *//' | sed 's/<.*>//')
-                    msg_date=$(grep -i "^Date:" "$msg_tmp" | head -1 | sed 's/^[Dd]ate: *//')
-                    msg_body=$(awk '/^$/{p=1; next} p{print}' "$msg_tmp" | head -c "$MAX_CONTENT_LENGTH")
+                    msg_subject=$(grep -i "^Subject:" "$msg_tmp" 2>/dev/null | head -1 | sed 's/^[Ss]ubject: *//') || msg_subject=""
+                    msg_from=$(grep -i "^From:" "$msg_tmp" 2>/dev/null | head -1 | sed 's/^[Ff]rom: *//' | sed 's/<.*>//') || msg_from=""
+                    msg_date=$(grep -i "^Date:" "$msg_tmp" 2>/dev/null | head -1 | sed 's/^[Dd]ate: *//') || msg_date=""
+                    if ! msg_body=$(awk '/^$/{p=1; next} p{print}' "$msg_tmp" | head -c "$MAX_CONTENT_LENGTH"); then
+                        msg_body=""
+                    fi
                     content="Subject: ${msg_subject} From: ${msg_from} Date: ${msg_date} Body: ${msg_body}"
+                else
+                    echo "Warning: msgconvert failed to process: $file" >&2
                 fi
                 rm -f "$msg_tmp"
             else
@@ -575,7 +651,8 @@ process_file() {
     esac
 
     if [[ -z "$content" ]]; then
-        echo "File is empty: $file" >&2
+        echo "Error: No readable content could be extracted from: $file" >&2
+        echo "  Possible causes: file is empty, corrupted, password-protected, or in an unsupported encoding" >&2
         return 1
     fi
 
@@ -803,11 +880,20 @@ fi
 load_config
 
 # Process all patterns
+failed_files=()
+success_count=0
+total_count=0
+
 for PATTERN in "${PATTERNS[@]}"; do
     # Check if pattern is a file
     if [[ -f "$PATTERN" ]]; then
         # Single file mode
-        process_file "$PATTERN"
+        total_count=$((total_count + 1))
+        if ! process_file "$PATTERN"; then
+            failed_files+=("$PATTERN")
+        else
+            success_count=$((success_count + 1))
+        fi
     else
         # Pattern matching mode - find files
         echo "Searching for files matching: $PATTERN" >&2
@@ -830,8 +916,16 @@ for PATTERN in "${PATTERNS[@]}"; do
 
         FD_ARGS+=(--type f .)
 
-        # Use fd to find files
-        mapfile -t files < <(fd "${FD_ARGS[@]}" 2>/dev/null || true)
+        # Use fd to find files (empty result if fd fails — handled below)
+        fd_output=""
+        if ! fd_output=$(fd "${FD_ARGS[@]}" 2>/dev/null); then
+            fd_output=""
+        fi
+        mapfile -t files <<< "$fd_output"
+        # Remove empty element from empty heredoc
+        if [[ ${#files[@]} -eq 1 ]] && [[ -z "${files[0]}" ]]; then
+            files=()
+        fi
 
         if [[ ${#files[@]} -eq 0 ]]; then
             echo "No files found matching pattern: $PATTERN" >&2
@@ -846,8 +940,29 @@ for PATTERN in "${PATTERNS[@]}"; do
 
         # Process each file
         for file in "${files[@]}"; do
-            process_file "$file" || true
+            total_count=$((total_count + 1))
+            if ! process_file "$file"; then
+                failed_files+=("$file")
+            else
+                success_count=$((success_count + 1))
+            fi
             echo "" >&2
         done
     fi
 done
+
+# Print summary when multiple files were processed
+if [[ $total_count -gt 1 ]]; then
+    echo "Processed ${total_count} file(s): ${success_count} succeeded, ${#failed_files[@]} failed" >&2
+    if [[ ${#failed_files[@]} -gt 0 ]]; then
+        echo "Failed:" >&2
+        for f in "${failed_files[@]}"; do
+            echo "  - $f" >&2
+        done
+    fi
+fi
+
+# Exit non-zero if any files failed
+if [[ ${#failed_files[@]} -gt 0 ]]; then
+    exit 1
+fi

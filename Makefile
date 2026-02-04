@@ -49,6 +49,8 @@ test:
 	@./test/test_config_cli.sh
 	@echo "Running file format tests..."
 	@./test/test_file_formats.sh
+	@echo "Running error handling tests..."
+	@./test/test_error_handling.sh
 	@echo "Running Nix packaging tests..."
 	@./test/test_nix_build.sh
 	@echo "All tests passed!"
