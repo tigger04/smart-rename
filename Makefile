@@ -158,15 +158,18 @@ brew-upgrade:
 	@brew upgrade tigger04/tap/smart-rename || brew reinstall tigger04/tap/smart-rename
 	@echo "Installed version: $$(smart-rename --version)"
 
-# Git sync: add all, commit, pull (merge), push
+# Git sync: add all, commit, pull (merge), push, update submodules
 sync:
+	@if [ -f .gitmodules ]; then \
+		echo "Updating submodules..."; \
+		git submodule sync --recursive && \
+		git submodule update --init --recursive; \
+	fi
 	@if [ -z "$$(git status --porcelain)" ]; then \
 		echo "Nothing to commit, pulling..."; \
-		git pull && git push; \
 	else \
 		MSG=$${MSG:-"sync: update"}; \
 		git add --all && \
-		git commit -m "$$MSG" && \
-		git pull && \
-		git push; \
+		git commit -m "$$MSG"; \
 	fi
+	@git pull --rebase=false && git push
