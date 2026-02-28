@@ -761,8 +761,9 @@ process_file() {
         echo "Note: Removed invalid 0.00 amount from filename" >&2
     fi
 
-    # Add extension
+    # Add extension (lowercased for consistent sorting across filesystems)
     local ext="${file##*.}"
+    ext=$(echo "$ext" | tr '[:upper:]' '[:lower:]')
     if [[ "$ext" != "$file" ]]; then
         new_name="${new_name}.${ext}"
     fi
