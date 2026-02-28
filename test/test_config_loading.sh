@@ -348,7 +348,163 @@ assert_eq "Partial: openai model from example (not overridden)" "$openai_example
 assert_eq "Partial: claude model from example (not overridden)" "$claude_example" "$claude_loaded"
 assert_eq "Partial: currency from example (not overridden)" "$currency_example" "$currency_loaded"
 
-# --- Test 6: No hardcoded model defaults in summarize-text-lib.sh ---
+# --- Test 6: key_command loads API keys from shell commands ---
+echo "--- key_command loads API keys from shell commands ---"
+echo ""
+
+# Create a config with key_command
+cat > "$TEMP_DIR/key_cmd_config.yaml" <<YAML
+api:
+  openai:
+    key_command: "echo test-openai-key-12345"
+  claude:
+    key_command: "echo test-claude-key-67890"
+YAML
+
+cat > "$TEMP_DIR/test_key_command.sh" <<SCRIPT
+#!/usr/bin/env bash
+set -euo pipefail
+CONFIG_FILE="$TEMP_DIR/key_cmd_config.yaml"
+CONFIG_DIR="$TEMP_DIR"
+SMART_RENAME_SHARE_DIR="$fake_share"
+
+PROMPT_TEMPLATE=""
+CLASSIFY_PROMPT=""
+RECEIPT_PROMPT=""
+BASE_CURRENCY="EUR"
+OLLAMA_MODEL="smart-rename"
+OPENAI_MODEL="gpt-4o-mini"
+CLAUDE_MODEL="claude-haiku-4-5-20251001"
+MAX_CONTENT_LENGTH=5000
+API_TIMEOUT=30
+PROVIDER_PREFERENCE=(ollama openai claude)
+
+# Clear any env vars
+unset OPENAI_API_KEY 2>/dev/null || true
+unset CLAUDE_API_KEY 2>/dev/null || true
+
+eval "\$(sed -n '/^_load_yaml_config()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
+eval "\$(sed -n '/^resolve_share_dir()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
+eval "\$(sed -n '/^load_config()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
+
+load_config
+echo "OPENAI_KEY=\${OPENAI_API_KEY:-}"
+echo "CLAUDE_KEY=\${CLAUDE_API_KEY:-}"
+SCRIPT
+chmod +x "$TEMP_DIR/test_key_command.sh"
+
+result=$("$TEMP_DIR/test_key_command.sh" 2>/dev/null)
+
+openai_key=$(echo "$result" | grep '^OPENAI_KEY=' | cut -d= -f2)
+claude_key=$(echo "$result" | grep '^CLAUDE_KEY=' | cut -d= -f2)
+
+assert_eq "key_command: OpenAI key loaded from command" "test-openai-key-12345" "$openai_key"
+assert_eq "key_command: Claude key loaded from command" "test-claude-key-67890" "$claude_key"
+
+# --- Test 7: key_command takes precedence over inline key ---
+echo "--- key_command takes precedence over inline key ---"
+echo ""
+
+cat > "$TEMP_DIR/key_precedence_config.yaml" <<YAML
+api:
+  openai:
+    key_command: "echo from-command"
+    key: from-inline
+YAML
+
+cat > "$TEMP_DIR/test_key_precedence.sh" <<SCRIPT
+#!/usr/bin/env bash
+set -euo pipefail
+CONFIG_FILE="$TEMP_DIR/key_precedence_config.yaml"
+CONFIG_DIR="$TEMP_DIR"
+SMART_RENAME_SHARE_DIR="$fake_share"
+
+PROMPT_TEMPLATE=""
+CLASSIFY_PROMPT=""
+RECEIPT_PROMPT=""
+BASE_CURRENCY="EUR"
+OLLAMA_MODEL="smart-rename"
+OPENAI_MODEL="gpt-4o-mini"
+CLAUDE_MODEL="claude-haiku-4-5-20251001"
+MAX_CONTENT_LENGTH=5000
+API_TIMEOUT=30
+PROVIDER_PREFERENCE=(ollama openai claude)
+
+unset OPENAI_API_KEY 2>/dev/null || true
+
+eval "\$(sed -n '/^_load_yaml_config()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
+eval "\$(sed -n '/^resolve_share_dir()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
+eval "\$(sed -n '/^load_config()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
+
+load_config
+echo "OPENAI_KEY=\${OPENAI_API_KEY:-}"
+SCRIPT
+chmod +x "$TEMP_DIR/test_key_precedence.sh"
+
+result=$("$TEMP_DIR/test_key_precedence.sh" 2>/dev/null)
+openai_key=$(echo "$result" | grep '^OPENAI_KEY=' | cut -d= -f2)
+
+assert_eq "key_command takes precedence over inline key" "from-command" "$openai_key"
+
+# --- Test 8: Failed key_command warns and falls through ---
+echo "--- Failed key_command warns and falls through ---"
+echo ""
+
+cat > "$TEMP_DIR/key_fail_config.yaml" <<YAML
+api:
+  openai:
+    key_command: "false"
+    key: fallback-inline-key
+YAML
+
+cat > "$TEMP_DIR/test_key_fail.sh" <<SCRIPT
+#!/usr/bin/env bash
+set -euo pipefail
+CONFIG_FILE="$TEMP_DIR/key_fail_config.yaml"
+CONFIG_DIR="$TEMP_DIR"
+SMART_RENAME_SHARE_DIR="$fake_share"
+
+PROMPT_TEMPLATE=""
+CLASSIFY_PROMPT=""
+RECEIPT_PROMPT=""
+BASE_CURRENCY="EUR"
+OLLAMA_MODEL="smart-rename"
+OPENAI_MODEL="gpt-4o-mini"
+CLAUDE_MODEL="claude-haiku-4-5-20251001"
+MAX_CONTENT_LENGTH=5000
+API_TIMEOUT=30
+PROVIDER_PREFERENCE=(ollama openai claude)
+
+unset OPENAI_API_KEY 2>/dev/null || true
+
+eval "\$(sed -n '/^_load_yaml_config()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
+eval "\$(sed -n '/^resolve_share_dir()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
+eval "\$(sed -n '/^load_config()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
+
+# Redirect stderr to file to avoid subshell (export must stay in current shell)
+load_config 2>"$TEMP_DIR/key_fail_stderr.txt"
+echo "OPENAI_KEY=\${OPENAI_API_KEY:-}"
+echo "STDERR=\$(cat "$TEMP_DIR/key_fail_stderr.txt")"
+SCRIPT
+chmod +x "$TEMP_DIR/test_key_fail.sh"
+
+result=$("$TEMP_DIR/test_key_fail.sh" 2>/dev/null)
+openai_key=$(echo "$result" | grep '^OPENAI_KEY=' | cut -d= -f2)
+stderr_out=$(echo "$result" | grep '^STDERR=' | cut -d= -f2-)
+
+assert_eq "Failed key_command falls through to inline key" "fallback-inline-key" "$openai_key"
+
+if [[ "$stderr_out" == *"key_command failed"* ]]; then
+    echo "PASS: Failed key_command produces warning on stderr"
+    passed=$((passed + 1))
+else
+    echo "FAIL: Failed key_command should warn on stderr"
+    echo "      Got stderr: $stderr_out"
+    failed=$((failed + 1))
+fi
+echo ""
+
+# --- Test 9: No hardcoded model defaults in summarize-text-lib.sh ---
 echo "--- Checking summarize-text-lib.sh has no hardcoded model defaults ---"
 echo ""
 

@@ -69,12 +69,19 @@ api:
 
   openai:
     model: gpt-4o-mini
-    # API key — can be set here or as OPENAI_API_KEY environment variable
+    # API key — set via key_command (recommended), key, or OPENAI_API_KEY env var
+    # key_command runs a shell command and uses stdout as the key
+    # key_command: "cat ~/.secrets/openai-key"
+    # key_command: "security find-generic-password -s openai-api-key -w"
+    # key_command: "op read 'op://Private/OpenAI/credential'"
     # key: sk-...
 
   claude:
     model: claude-haiku-4-5-20251001
-    # API key — can be set here or as CLAUDE_API_KEY environment variable
+    # API key — set via key_command (recommended), key, or CLAUDE_API_KEY env var
+    # key_command: "cat ~/.secrets/claude-key"
+    # key_command: "security find-generic-password -s claude-api-key -w"
+    # key_command: "op read 'op://Private/Claude/credential'"
     # key: sk-ant-...
 
 # Custom abbreviations for common terms

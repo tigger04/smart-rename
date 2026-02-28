@@ -90,12 +90,38 @@ _load_yaml_config() {
         CLAUDE_MODEL="$val"
     fi
 
-    if val=$(yq eval '.api.openai.key // ""' "$config_path" 2>/dev/null) && [[ -n "$val" ]]; then
-        export OPENAI_API_KEY="$val"
+    # OpenAI key: key_command > key > env var
+    local openai_key_resolved=false
+    if val=$(yq eval '.api.openai.key_command // ""' "$config_path" 2>/dev/null) && [[ -n "$val" ]]; then
+        local cmd_output
+        if cmd_output=$(bash -c "$val" 2>/dev/null) && [[ -n "$cmd_output" ]]; then
+            export OPENAI_API_KEY="$cmd_output"
+            openai_key_resolved=true
+        else
+            echo "Warning: api.openai.key_command failed: $val" >&2
+        fi
+    fi
+    if [[ "$openai_key_resolved" != "true" ]]; then
+        if val=$(yq eval '.api.openai.key // ""' "$config_path" 2>/dev/null) && [[ -n "$val" ]]; then
+            export OPENAI_API_KEY="$val"
+        fi
     fi
 
-    if val=$(yq eval '.api.claude.key // ""' "$config_path" 2>/dev/null) && [[ -n "$val" ]]; then
-        export CLAUDE_API_KEY="$val"
+    # Claude key: key_command > key > env var
+    local claude_key_resolved=false
+    if val=$(yq eval '.api.claude.key_command // ""' "$config_path" 2>/dev/null) && [[ -n "$val" ]]; then
+        local cmd_output
+        if cmd_output=$(bash -c "$val" 2>/dev/null) && [[ -n "$cmd_output" ]]; then
+            export CLAUDE_API_KEY="$cmd_output"
+            claude_key_resolved=true
+        else
+            echo "Warning: api.claude.key_command failed: $val" >&2
+        fi
+    fi
+    if [[ "$claude_key_resolved" != "true" ]]; then
+        if val=$(yq eval '.api.claude.key // ""' "$config_path" 2>/dev/null) && [[ -n "$val" ]]; then
+            export CLAUDE_API_KEY="$val"
+        fi
     fi
 
     if val=$(yq eval '.processing.max_content_length // ""' "$config_path" 2>/dev/null) && [[ -n "$val" ]]; then
