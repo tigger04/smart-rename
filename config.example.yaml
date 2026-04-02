@@ -84,6 +84,12 @@ api:
     # key_command: "op read 'op://Private/Claude/credential'"
     # key: sk-ant-...
 
+# Words to exclude from AI-generated filenames
+# Useful for suppressing personal names that appear prominently in documents
+# excluded_words:
+#   - surname
+#   - firstname
+
 # Custom abbreviations for common terms
 abbreviations:
   svph: "St. Vincent's Private Hospital"

@@ -51,6 +51,8 @@ test:
 	@./test/test_file_formats.sh
 	@echo "Running error handling tests..."
 	@./test/test_error_handling.sh
+	@echo "Running excluded words tests..."
+	@./test/test_excluded_words.sh
 	@echo "Running Nix packaging tests..."
 	@./test/test_nix_build.sh
 	@echo "All tests passed!"

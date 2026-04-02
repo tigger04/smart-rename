@@ -24,6 +24,7 @@ CLAUDE_MODEL="claude-haiku-4-5-20251001"
 MAX_CONTENT_LENGTH=5000
 API_TIMEOUT=30
 PROVIDER_PREFERENCE=(ollama openai claude)
+EXCLUDED_WORDS=()
 
 # Resolve the share directory where config.example.yaml and Modelfile live
 resolve_share_dir() {
@@ -140,6 +141,19 @@ _load_yaml_config() {
             local provider
             if provider=$(yq eval ".api.preference[$i]" "$config_path" 2>/dev/null) && [[ -n "$provider" ]]; then
                 PROVIDER_PREFERENCE+=("$provider")
+            fi
+            i=$((i + 1))
+        done
+    fi
+
+    local excl_count
+    if excl_count=$(yq eval '.excluded_words | length' "$config_path" 2>/dev/null) && [[ "$excl_count" =~ ^[0-9]+$ ]] && [[ "$excl_count" -gt 0 ]]; then
+        EXCLUDED_WORDS=()
+        local i=0
+        while [[ $i -lt $excl_count ]]; do
+            local word
+            if word=$(yq eval ".excluded_words[$i]" "$config_path" 2>/dev/null) && [[ -n "$word" ]]; then
+                EXCLUDED_WORDS+=("$word")
             fi
             i=$((i + 1))
         done
@@ -717,6 +731,14 @@ process_file() {
     prompt="${prompt//\{\{FILENAME\}\}/$file}"
     prompt="${prompt//\{\{BASE_CURRENCY\}\}/$BASE_CURRENCY}"
     prompt="${prompt//\{\{CATEGORY\}\}/$category}"
+
+    # Append exclusion instruction when the user has configured words to suppress
+    if [[ ${#EXCLUDED_WORDS[@]} -gt 0 ]]; then
+        local excluded_list
+        excluded_list=$(printf '%s, ' "${EXCLUDED_WORDS[@]}")
+        excluded_list="${excluded_list%, }"
+        prompt="${prompt}"$'\n'"Do not include any of the following words in the filename: ${excluded_list}."
+    fi
 
     # Get AI response using preference order
     local new_name=""
