@@ -18,8 +18,8 @@ help:
 	@echo "  tag          - Create and push git tag for current VERSION"
 	@echo "  formula      - Update Homebrew formula with current VERSION and SHA"
 	@echo "  brew-upgrade - Upgrade local Homebrew installation"
-	@echo "  install      - Development install to /usr/local/bin (requires sudo)"
-	@echo "  uninstall    - Remove installed files (requires sudo)"
+	@echo "  install      - Development install: symlink to ~/.local/bin"
+	@echo "  uninstall    - Remove symlinks from ~/.local/bin"
 	@echo "  sync         - Git add, commit, pull, push"
 	@echo "  clean        - Clean up test artifacts"
 	@echo ""
@@ -57,23 +57,22 @@ test:
 	@./test/test_nix_build.sh
 	@echo "All tests passed!"
 
-# Development install (requires sudo)
+# Development install: symlink into ~/.local/bin (no sudo required)
 install: smart-rename
-	@echo "Installing to /usr/local/bin (requires sudo)..."
-	@echo "Creating directories..."
-	@sudo install -d /usr/local/bin
-	@sudo install -d /usr/local/share/smart-rename
-	@echo "Installing files..."
-	@sudo install -m 755 smart-rename /usr/local/bin/
-	@sudo install -m 644 config.example.yaml /usr/local/share/smart-rename/
-	@sudo install -m 644 smart-rename.Modelfile /usr/local/share/smart-rename/
-	@echo "Installation complete: /usr/local/bin/smart-rename"
+	@echo "Installing symlinks to ~/.local/bin..."
+	@mkdir -p "$(HOME)/.local/bin" "$(HOME)/.local/share/smart-rename"
+	@ln -sf "$(CURDIR)/smart-rename" "$(HOME)/.local/bin/smart-rename"
+	@ln -sf "$(CURDIR)/config.example.yaml" "$(HOME)/.local/share/smart-rename/config.example.yaml"
+	@ln -sf "$(CURDIR)/smart-rename.Modelfile" "$(HOME)/.local/share/smart-rename/smart-rename.Modelfile"
+	@echo "Installed: $(HOME)/.local/bin/smart-rename"
 
-# Uninstall (requires sudo)
+# Uninstall: remove symlinks from ~/.local/bin and ~/.local/share
 uninstall:
-	@echo "Uninstalling from /usr/local (requires sudo)..."
-	@sudo rm -f /usr/local/bin/smart-rename
-	@sudo rm -rf /usr/local/share/smart-rename
+	@echo "Removing symlinks from ~/.local/bin..."
+	@rm -f "$(HOME)/.local/bin/smart-rename"
+	@rm -f "$(HOME)/.local/share/smart-rename/config.example.yaml"
+	@rm -f "$(HOME)/.local/share/smart-rename/smart-rename.Modelfile"
+	@rmdir "$(HOME)/.local/share/smart-rename" 2>/dev/null || true
 	@echo "Uninstall complete"
 
 # Build the executable (ensures it exists and is executable)
@@ -100,8 +99,13 @@ bump:
 	echo "Bumping version: $$OLD_VERSION -> $$NEW_VERSION"; \
 	sed -i.bak "s/^VERSION=\"$$OLD_VERSION\"/VERSION=\"$$NEW_VERSION\"/" $(SCRIPT) && rm -f $(SCRIPT).bak
 
-# Full release workflow
-release: test
+# Full release workflow (SKIP_TESTS=1 to bypass when tests already passed)
+release:
+ifeq ($(SKIP_TESTS),1)
+	@echo "Skipping tests (SKIP_TESTS=1)"
+else
+	@$(MAKE) test
+endif
 	@echo "=== Starting release ==="
 	@if [ -n "$$(git status --porcelain)" ]; then \
 		echo "Error: Working directory not clean. Commit changes first."; \

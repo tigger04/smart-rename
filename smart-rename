@@ -34,6 +34,7 @@ resolve_share_dir() {
     local candidates=(
         "${SMART_RENAME_SHARE_DIR}"
         "$script_dir"
+        "$HOME/.local/share/smart-rename"
         "/opt/homebrew/share/smart-rename"
         "/usr/local/share/smart-rename"
     )
