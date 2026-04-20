@@ -81,7 +81,8 @@ OPENAI_MODEL="gpt-4o-mini"
 CLAUDE_MODEL="claude-haiku-4-5-20251001"
 MAX_CONTENT_LENGTH=5000
 API_TIMEOUT=30
-PROVIDER_PREFERENCE=(ollama openai claude)
+PROVIDER_PREFERENCE_CLASSIFY=(ollama openai claude)
+PROVIDER_PREFERENCE_NAME=(openai claude ollama)
 EXCLUDED_WORDS=()
 
 eval "\$(sed -n '/^_load_yaml_config()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
@@ -125,7 +126,8 @@ OPENAI_MODEL="gpt-4o-mini"
 CLAUDE_MODEL="claude-haiku-4-5-20251001"
 MAX_CONTENT_LENGTH=5000
 API_TIMEOUT=30
-PROVIDER_PREFERENCE=(ollama openai claude)
+PROVIDER_PREFERENCE_CLASSIFY=(ollama openai claude)
+PROVIDER_PREFERENCE_NAME=(openai claude ollama)
 EXCLUDED_WORDS=()
 
 eval "\$(sed -n '/^_load_yaml_config()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
@@ -171,7 +173,8 @@ OPENAI_MODEL="gpt-4o-mini"
 CLAUDE_MODEL="claude-haiku-4-5-20251001"
 MAX_CONTENT_LENGTH=5000
 API_TIMEOUT=30
-PROVIDER_PREFERENCE=(ollama openai claude)
+PROVIDER_PREFERENCE_CLASSIFY=(ollama openai claude)
+PROVIDER_PREFERENCE_NAME=(openai claude ollama)
 EXCLUDED_WORDS=()
 
 eval "\$(sed -n '/^_load_yaml_config()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
@@ -207,7 +210,8 @@ OPENAI_MODEL="gpt-4o-mini"
 CLAUDE_MODEL="claude-haiku-4-5-20251001"
 MAX_CONTENT_LENGTH=5000
 API_TIMEOUT=30
-PROVIDER_PREFERENCE=(ollama openai claude)
+PROVIDER_PREFERENCE_CLASSIFY=(ollama openai claude)
+PROVIDER_PREFERENCE_NAME=(openai claude ollama)
 EXCLUDED_WORDS=()
 
 eval "\$(sed -n '/^_load_yaml_config()/,/^}/p' "$PROJECT_ROOT/smart-rename")"

@@ -1,3 +1,4 @@
+sanitize: defaulting to oed + symbols
 # smart-rename
 
 AI-powered file renaming tool that generates intelligent, descriptive filenames based on file content.
@@ -115,16 +116,18 @@ The tool works out of the box with sensible built-in defaults. No configuration 
 
 ### Provider Order
 
-By default, smart-rename tries AI providers in this order:
-1. **Ollama** (local, private, no API key needed)
-2. **OpenAI** (requires `OPENAI_API_KEY`)
-3. **Claude** (requires `CLAUDE_API_KEY`)
+smart-rename uses a two-step AI process: **classify** (determine document type) then **name** (generate filename). Each step has its own provider preference order:
+
+| Step | Default order | Rationale |
+|------|--------------|-----------|
+| **Classify** | Ollama -> OpenAI -> Claude | Simple task; Ollama is free and fast |
+| **Name** | OpenAI -> Claude -> Ollama | Naming benefits from more capable models |
 
 The first provider that is available and responds successfully is used.
 
 ### Optional Configuration
 
-To customise behaviour, create a config file:
+To customize behaviour, create a config file:
 
 ```bash
 # Print the reference config and pipe to your config location
@@ -135,9 +138,9 @@ nano ~/.config/smart-rename/config.yaml
 ```
 
 The config file lets you override:
-- **Provider order**: Change which AI is tried first
+- **Provider order**: Change which AI is tried first, per phase or globally
 - **Models**: Use different models for each provider
-- **Prompt**: Customise the filename generation prompt
+- **Prompt**: Customize the filename generation prompt
 - **API keys**: Store keys in the config instead of environment variables
 - **Currency**: Change the base currency for invoice amounts
 
@@ -149,14 +152,28 @@ prompt:
 
 api:
   preference:
-    - claude
-    - openai
-    - ollama
+    classify:          # provider order for document classification
+      - ollama
+      - openai
+      - claude
+    name:              # provider order for filename generation
+      - openai
+      - claude
+      - ollama
   ollama:
     model: smart-rename
 
 currency:
   base: "USD"
+```
+
+A flat preference list (legacy format) is also supported - it applies to both phases:
+```yaml
+api:
+  preference:
+    - claude
+    - openai
+    - ollama
 ```
 
 ### Environment Variables
@@ -239,10 +256,10 @@ smart-rename -g "*.pdf"
 - Concise, descriptive names based on content
 
 ### Receipts/Invoices
-- Format: `YYYY-MM-DD-amount-description.ext` (amount always includes two decimal places)
-- Examples: `2024-01-15-123.45-office-supplies.pdf`, `2024-02-28-100.00-monthly-subscription.pdf`
+- Format: `YYYY-MM-DD-amount-vendor-description.ext` (amount always includes two decimal places)
+- Examples: `2026-01-31-124.50-smc-pharmacy-prescription.pdf`, `2026-01-31-7.99-amazon-phone-case.pdf`
 - Base currency (default EUR) omits currency code
-- Non-base currency: `YYYY-MM-DD-CUR-amount-description.ext` where CUR is the lowercase ISO currency code.
+- Non-base currency: `YYYY-MM-DD-CUR-amount-vendor-description.ext` where CUR is the lowercase ISO currency code.
 
 ### Abbreviations (Configurable)
 The tool comes with a few example abbreviations, adjust to your own needs in `config.yaml`
@@ -260,7 +277,7 @@ The tool comes with a few example abbreviations, adjust to your own needs in `co
 | `config.yaml` | Working config (not installed; for dev use) |
 | `smart-rename.Modelfile` | Ollama model definition |
 | `Makefile` | Build, test, release automation |
-| `summarize-text-lib.sh` | Legacy text summarisation library |
+| `summarize-text-lib.sh` | Legacy text summarization library |
 | `test/test_config_cli.sh` | Tests for --example-config and stale config detection |
 | `test/test_file_formats.sh` | Tests for all file format extraction (PDF OCR, DOCX, XLSX, etc.) |
 | `docs/architecture.md` | Architecture and design decisions |
@@ -323,3 +340,5 @@ The release process automatically:
 ## License
 
 MIT License - Copyright Tadg Paul - See LICENSE file for details
+3 -ize corrections
+5 symbol replacements

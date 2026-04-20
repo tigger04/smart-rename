@@ -79,8 +79,8 @@ assert_not_empty "config.example.yaml defines prompt template" "$prompt_example"
 currency_example=$(yq eval '.currency.base // ""' "$PROJECT_ROOT/config.example.yaml" 2>/dev/null)
 assert_not_empty "config.example.yaml defines base currency" "$currency_example"
 
-pref_count=$(yq eval '.api.preference | length' "$PROJECT_ROOT/config.example.yaml" 2>/dev/null)
-assert_eq "config.example.yaml has 3 providers in preference" "3" "$pref_count"
+pref_type=$(yq eval '.api.preference | type' "$PROJECT_ROOT/config.example.yaml" 2>/dev/null)
+assert_eq "config.example.yaml preference is a map (per-phase)" "!!map" "$pref_type"
 
 # Config uses prompt.template (not prompts.rename)
 old_prompt=$(yq eval '.prompts.rename // ""' "$PROJECT_ROOT/config.example.yaml" 2>/dev/null)
@@ -154,7 +154,8 @@ OPENAI_MODEL="emergency-model"
 CLAUDE_MODEL="emergency-model"
 MAX_CONTENT_LENGTH=0
 API_TIMEOUT=0
-PROVIDER_PREFERENCE=()
+PROVIDER_PREFERENCE_CLASSIFY=()
+PROVIDER_PREFERENCE_NAME=()
 
 # Extract functions from smart-rename
 eval "\$(sed -n '/^_load_yaml_config()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
@@ -166,7 +167,8 @@ echo "OLLAMA=\$OLLAMA_MODEL"
 echo "OPENAI=\$OPENAI_MODEL"
 echo "CLAUDE=\$CLAUDE_MODEL"
 echo "CURRENCY=\$BASE_CURRENCY"
-echo "PREF=\${PROVIDER_PREFERENCE[*]}"
+echo "PREF_CLASSIFY=\${PROVIDER_PREFERENCE_CLASSIFY[*]}"
+echo "PREF_NAME=\${PROVIDER_PREFERENCE_NAME[*]}"
 SCRIPT
 chmod +x "$TEMP_DIR/test_defaults_from_example.sh"
 
@@ -176,13 +178,15 @@ ollama_loaded=$(echo "$result" | grep '^OLLAMA=' | cut -d= -f2)
 openai_loaded=$(echo "$result" | grep '^OPENAI=' | cut -d= -f2)
 claude_loaded=$(echo "$result" | grep '^CLAUDE=' | cut -d= -f2)
 currency_loaded=$(echo "$result" | grep '^CURRENCY=' | cut -d= -f2)
-pref_loaded=$(echo "$result" | grep '^PREF=' | cut -d= -f2)
+pref_classify_loaded=$(echo "$result" | grep '^PREF_CLASSIFY=' | cut -d= -f2)
+pref_name_loaded=$(echo "$result" | grep '^PREF_NAME=' | cut -d= -f2)
 
 assert_eq "Defaults: ollama model from config.example.yaml" "$ollama_example" "$ollama_loaded"
 assert_eq "Defaults: openai model from config.example.yaml" "$openai_example" "$openai_loaded"
 assert_eq "Defaults: claude model from config.example.yaml" "$claude_example" "$claude_loaded"
 assert_eq "Defaults: currency from config.example.yaml" "$currency_example" "$currency_loaded"
-assert_eq "Defaults: preference from config.example.yaml" "ollama openai claude" "$pref_loaded"
+assert_eq "Defaults: classify preference from config.example.yaml" "ollama openai claude" "$pref_classify_loaded"
+assert_eq "Defaults: name preference from config.example.yaml" "openai claude ollama" "$pref_name_loaded"
 
 # --- Test 3: User config overrides config.example.yaml ---
 echo "--- User config overrides example defaults ---"
@@ -219,7 +223,8 @@ OPENAI_MODEL="emergency-model"
 CLAUDE_MODEL="emergency-model"
 MAX_CONTENT_LENGTH=0
 API_TIMEOUT=0
-PROVIDER_PREFERENCE=()
+PROVIDER_PREFERENCE_CLASSIFY=()
+PROVIDER_PREFERENCE_NAME=()
 
 eval "\$(sed -n '/^_load_yaml_config()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
 eval "\$(sed -n '/^resolve_share_dir()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
@@ -230,7 +235,8 @@ echo "OLLAMA=\$OLLAMA_MODEL"
 echo "OPENAI=\$OPENAI_MODEL"
 echo "CLAUDE=\$CLAUDE_MODEL"
 echo "CURRENCY=\$BASE_CURRENCY"
-echo "PREF=\${PROVIDER_PREFERENCE[*]}"
+echo "PREF_CLASSIFY=\${PROVIDER_PREFERENCE_CLASSIFY[*]}"
+echo "PREF_NAME=\${PROVIDER_PREFERENCE_NAME[*]}"
 SCRIPT
 chmod +x "$TEMP_DIR/test_user_override.sh"
 
@@ -240,13 +246,15 @@ ollama_loaded=$(echo "$result" | grep '^OLLAMA=' | cut -d= -f2)
 openai_loaded=$(echo "$result" | grep '^OPENAI=' | cut -d= -f2)
 claude_loaded=$(echo "$result" | grep '^CLAUDE=' | cut -d= -f2)
 currency_loaded=$(echo "$result" | grep '^CURRENCY=' | cut -d= -f2)
-pref_loaded=$(echo "$result" | grep '^PREF=' | cut -d= -f2)
+pref_classify_loaded=$(echo "$result" | grep '^PREF_CLASSIFY=' | cut -d= -f2)
+pref_name_loaded=$(echo "$result" | grep '^PREF_NAME=' | cut -d= -f2)
 
 assert_eq "User override: ollama model" "user-ollama-override" "$ollama_loaded"
 assert_eq "User override: openai model" "user-openai-override" "$openai_loaded"
 assert_eq "User override: claude model" "user-claude-override" "$claude_loaded"
 assert_eq "User override: currency" "USD" "$currency_loaded"
-assert_eq "User override: preference" "claude ollama" "$pref_loaded"
+assert_eq "User override: flat preference populates classify" "claude ollama" "$pref_classify_loaded"
+assert_eq "User override: flat preference populates name" "claude ollama" "$pref_name_loaded"
 
 # --- Test 4: Emergency fallback when config.example.yaml missing ---
 echo "--- Emergency fallback when no config files found ---"
@@ -268,7 +276,8 @@ OPENAI_MODEL="gpt-4o"
 CLAUDE_MODEL="claude-3-5-sonnet-20241022"
 MAX_CONTENT_LENGTH=5000
 API_TIMEOUT=30
-PROVIDER_PREFERENCE=(ollama openai claude)
+PROVIDER_PREFERENCE_CLASSIFY=(ollama openai claude)
+PROVIDER_PREFERENCE_NAME=(openai claude ollama)
 
 eval "\$(sed -n '/^_load_yaml_config()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
 eval "\$(sed -n '/^resolve_share_dir()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
@@ -321,7 +330,8 @@ OPENAI_MODEL="emergency-model"
 CLAUDE_MODEL="emergency-model"
 MAX_CONTENT_LENGTH=0
 API_TIMEOUT=0
-PROVIDER_PREFERENCE=()
+PROVIDER_PREFERENCE_CLASSIFY=()
+PROVIDER_PREFERENCE_NAME=()
 
 eval "\$(sed -n '/^_load_yaml_config()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
 eval "\$(sed -n '/^resolve_share_dir()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
@@ -377,7 +387,8 @@ OPENAI_MODEL="gpt-4o-mini"
 CLAUDE_MODEL="claude-haiku-4-5-20251001"
 MAX_CONTENT_LENGTH=5000
 API_TIMEOUT=30
-PROVIDER_PREFERENCE=(ollama openai claude)
+PROVIDER_PREFERENCE_CLASSIFY=(ollama openai claude)
+PROVIDER_PREFERENCE_NAME=(openai claude ollama)
 
 # Clear any env vars
 unset OPENAI_API_KEY 2>/dev/null || true
@@ -428,7 +439,8 @@ OPENAI_MODEL="gpt-4o-mini"
 CLAUDE_MODEL="claude-haiku-4-5-20251001"
 MAX_CONTENT_LENGTH=5000
 API_TIMEOUT=30
-PROVIDER_PREFERENCE=(ollama openai claude)
+PROVIDER_PREFERENCE_CLASSIFY=(ollama openai claude)
+PROVIDER_PREFERENCE_NAME=(openai claude ollama)
 
 unset OPENAI_API_KEY 2>/dev/null || true
 
@@ -473,7 +485,8 @@ OPENAI_MODEL="gpt-4o-mini"
 CLAUDE_MODEL="claude-haiku-4-5-20251001"
 MAX_CONTENT_LENGTH=5000
 API_TIMEOUT=30
-PROVIDER_PREFERENCE=(ollama openai claude)
+PROVIDER_PREFERENCE_CLASSIFY=(ollama openai claude)
+PROVIDER_PREFERENCE_NAME=(openai claude ollama)
 
 unset OPENAI_API_KEY 2>/dev/null || true
 
@@ -500,6 +513,36 @@ if [[ "$stderr_out" == *"key_command failed"* ]]; then
 else
     echo "FAIL: Failed key_command should warn on stderr"
     echo "      Got stderr: $stderr_out"
+    failed=$((failed + 1))
+fi
+echo ""
+
+# --- RT-36.7: Default receipt prompt contains vendor format ---
+echo "--- RT-36.7: Receipt prompt contains YYYY-MM-DD-amount-vendor-description ---"
+echo ""
+
+receipt_prompt=$(yq eval '.prompt.receipt // ""' "$PROJECT_ROOT/config.example.yaml" 2>/dev/null)
+if echo "$receipt_prompt" | grep -q 'YYYY-MM-DD-amount-vendor-description'; then
+    echo "PASS: RT-36.7: Default receipt prompt contains YYYY-MM-DD-amount-vendor-description"
+    passed=$((passed + 1))
+else
+    echo "FAIL: RT-36.7: Default receipt prompt should contain YYYY-MM-DD-amount-vendor-description"
+    echo "      Got: $(echo "$receipt_prompt" | head -2)"
+    failed=$((failed + 1))
+fi
+echo ""
+
+# --- RT-36.8: Default receipt prompt examples include vendor names ---
+echo "--- RT-36.8: Receipt prompt examples include vendor names ---"
+echo ""
+
+if echo "$receipt_prompt" | grep -q 'smc-pharmacy' && \
+   echo "$receipt_prompt" | grep -q 'amazon-phone-case' && \
+   echo "$receipt_prompt" | grep -q 'amazon-order'; then
+    echo "PASS: RT-36.8: Default receipt prompt examples include vendor names"
+    passed=$((passed + 1))
+else
+    echo "FAIL: RT-36.8: Default receipt prompt examples should include vendor names (smc-pharmacy, amazon-phone-case, amazon-order)"
     failed=$((failed + 1))
 fi
 echo ""

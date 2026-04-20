@@ -159,7 +159,8 @@ OPENAI_MODEL="gpt-4o"
 CLAUDE_MODEL="claude-3-5-sonnet-20241022"
 MAX_CONTENT_LENGTH=5000
 API_TIMEOUT=30
-PROVIDER_PREFERENCE=(ollama openai claude)
+PROVIDER_PREFERENCE_CLASSIFY=(ollama openai claude)
+PROVIDER_PREFERENCE_NAME=(openai claude ollama)
 
 eval "\$(sed -n '/^_load_yaml_config()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
 eval "\$(sed -n '/^resolve_share_dir()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
@@ -203,7 +204,8 @@ OPENAI_MODEL="gpt-4o"
 CLAUDE_MODEL="claude-3-5-sonnet-20241022"
 MAX_CONTENT_LENGTH=5000
 API_TIMEOUT=30
-PROVIDER_PREFERENCE=(ollama openai claude)
+PROVIDER_PREFERENCE_CLASSIFY=(ollama openai claude)
+PROVIDER_PREFERENCE_NAME=(openai claude ollama)
 
 eval "\$(sed -n '/^_load_yaml_config()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
 eval "\$(sed -n '/^resolve_share_dir()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
@@ -237,7 +239,8 @@ OPENAI_MODEL="gpt-4o"
 CLAUDE_MODEL="claude-3-5-sonnet-20241022"
 MAX_CONTENT_LENGTH=5000
 API_TIMEOUT=30
-PROVIDER_PREFERENCE=(ollama openai claude)
+PROVIDER_PREFERENCE_CLASSIFY=(ollama openai claude)
+PROVIDER_PREFERENCE_NAME=(openai claude ollama)
 
 eval "\$(sed -n '/^_load_yaml_config()/,/^}/p' "$PROJECT_ROOT/smart-rename")"
 eval "\$(sed -n '/^resolve_share_dir()/,/^}/p' "$PROJECT_ROOT/smart-rename")"

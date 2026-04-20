@@ -23,7 +23,8 @@ OPENAI_MODEL="gpt-4o-mini"
 CLAUDE_MODEL="claude-haiku-4-5-20251001"
 MAX_CONTENT_LENGTH=5000
 API_TIMEOUT=30
-PROVIDER_PREFERENCE=(ollama openai claude)
+PROVIDER_PREFERENCE_CLASSIFY=(ollama openai claude)
+PROVIDER_PREFERENCE_NAME=(openai claude ollama)
 EXCLUDED_WORDS=()
 
 # Resolve the share directory where config.example.yaml and Modelfile live
@@ -134,17 +135,52 @@ _load_yaml_config() {
         API_TIMEOUT="$val"
     fi
 
-    local pref_count
-    if pref_count=$(yq eval '.api.preference | length' "$config_path" 2>/dev/null) && [[ "$pref_count" =~ ^[0-9]+$ ]] && [[ "$pref_count" -gt 0 ]]; then
-        PROVIDER_PREFERENCE=()
-        local i=0
-        while [[ $i -lt $pref_count ]]; do
-            local provider
-            if provider=$(yq eval ".api.preference[$i]" "$config_path" 2>/dev/null) && [[ -n "$provider" ]]; then
-                PROVIDER_PREFERENCE+=("$provider")
+    # Provider preference: nested (classify/name) or flat (legacy) format
+    local pref_type
+    if pref_type=$(yq eval '.api.preference | type' "$config_path" 2>/dev/null); then
+        if [[ "$pref_type" == "!!map" ]]; then
+            # Nested format: api.preference.classify and api.preference.name
+            local classify_count
+            if classify_count=$(yq eval '.api.preference.classify | length' "$config_path" 2>/dev/null) && [[ "$classify_count" =~ ^[0-9]+$ ]] && [[ "$classify_count" -gt 0 ]]; then
+                PROVIDER_PREFERENCE_CLASSIFY=()
+                local i=0
+                while [[ $i -lt $classify_count ]]; do
+                    local provider
+                    if provider=$(yq eval ".api.preference.classify[$i]" "$config_path" 2>/dev/null) && [[ -n "$provider" ]]; then
+                        PROVIDER_PREFERENCE_CLASSIFY+=("$provider")
+                    fi
+                    i=$((i + 1))
+                done
             fi
-            i=$((i + 1))
-        done
+            local name_count
+            if name_count=$(yq eval '.api.preference.name | length' "$config_path" 2>/dev/null) && [[ "$name_count" =~ ^[0-9]+$ ]] && [[ "$name_count" -gt 0 ]]; then
+                PROVIDER_PREFERENCE_NAME=()
+                local i=0
+                while [[ $i -lt $name_count ]]; do
+                    local provider
+                    if provider=$(yq eval ".api.preference.name[$i]" "$config_path" 2>/dev/null) && [[ -n "$provider" ]]; then
+                        PROVIDER_PREFERENCE_NAME+=("$provider")
+                    fi
+                    i=$((i + 1))
+                done
+            fi
+        elif [[ "$pref_type" == "!!seq" ]]; then
+            # Flat legacy format: apply to both phases
+            local pref_count
+            if pref_count=$(yq eval '.api.preference | length' "$config_path" 2>/dev/null) && [[ "$pref_count" =~ ^[0-9]+$ ]] && [[ "$pref_count" -gt 0 ]]; then
+                PROVIDER_PREFERENCE_CLASSIFY=()
+                PROVIDER_PREFERENCE_NAME=()
+                local i=0
+                while [[ $i -lt $pref_count ]]; do
+                    local provider
+                    if provider=$(yq eval ".api.preference[$i]" "$config_path" 2>/dev/null) && [[ -n "$provider" ]]; then
+                        PROVIDER_PREFERENCE_CLASSIFY+=("$provider")
+                        PROVIDER_PREFERENCE_NAME+=("$provider")
+                    fi
+                    i=$((i + 1))
+                done
+            fi
+        fi
     fi
 
     local excl_count
@@ -347,17 +383,27 @@ try_openai() {
     json_payload=$(jq -n --arg p "$prompt" --arg m "$OPENAI_MODEL" '{
         model: $m,
         messages: [{role: "user", content: $p}],
-        max_tokens: 100
+        max_completion_tokens: 100
     }')
 
-    local response
-    if ! response=$(curl -s --max-time "$API_TIMEOUT" https://api.openai.com/v1/chat/completions \
+    local raw_response
+    if ! raw_response=$(curl -s --max-time "$API_TIMEOUT" https://api.openai.com/v1/chat/completions \
         -H "Authorization: Bearer $OPENAI_API_KEY" \
         -H "Content-Type: application/json" \
-        -d "$json_payload" | jq -r '.choices[0].message.content // empty' | head -1); then
+        -d "$json_payload"); then
         echo "Warning: OpenAI API request failed" >&2
-        response=""
+        return 1
     fi
+
+    # Check for API error response
+    local api_error
+    if api_error=$(echo "$raw_response" | jq -r '.error.message // empty') && [[ -n "$api_error" ]]; then
+        echo "Error: OpenAI API: $api_error" >&2
+        return 1
+    fi
+
+    local response
+    response=$(echo "$raw_response" | jq -r '.choices[0].message.content // empty' | head -1)
 
     if [[ -n "$response" ]]; then
         echo "Got response from OpenAI" >&2
@@ -384,15 +430,25 @@ try_claude() {
         max_tokens: 100
     }')
 
-    local response
-    if ! response=$(curl -s --max-time "$API_TIMEOUT" https://api.anthropic.com/v1/messages \
+    local raw_response
+    if ! raw_response=$(curl -s --max-time "$API_TIMEOUT" https://api.anthropic.com/v1/messages \
         -H "x-api-key: $CLAUDE_API_KEY" \
         -H "anthropic-version: 2023-06-01" \
         -H "content-type: application/json" \
-        -d "$json_payload" | jq -r '.content[0].text // empty' | head -1); then
+        -d "$json_payload"); then
         echo "Warning: Claude API request failed" >&2
-        response=""
+        return 1
     fi
+
+    # Check for API error response
+    local api_error
+    if api_error=$(echo "$raw_response" | jq -r '.error.message // empty') && [[ -n "$api_error" ]]; then
+        echo "Error: Claude API: $api_error" >&2
+        return 1
+    fi
+
+    local response
+    response=$(echo "$raw_response" | jq -r '.content[0].text // empty' | head -1)
 
     if [[ -n "$response" ]]; then
         echo "Got response from Claude" >&2
@@ -407,9 +463,13 @@ try_claude() {
 # Try providers in preference order, return first successful response
 get_ai_response() {
     local prompt="$1"
+    local phase="${2:-name}"
     local response=""
 
-    for provider in "${PROVIDER_PREFERENCE[@]}"; do
+    # Select preference array by phase
+    local -n pref_array="PROVIDER_PREFERENCE_${phase^^}"
+
+    for provider in "${pref_array[@]}"; do
         case "$provider" in
             ollama)
                 response=$(try_ollama "$prompt") && break
@@ -703,7 +763,7 @@ process_file() {
         local classify_prompt="$CLASSIFY_PROMPT"
         classify_prompt="${classify_prompt//\{\{CONTENT\}\}/$content}"
         local raw_category=""
-        if raw_category=$(get_ai_response "$classify_prompt"); then
+        if raw_category=$(get_ai_response "$classify_prompt" "classify"); then
             # Normalise: lowercase, strip whitespace and punctuation
             raw_category=$(echo "$raw_category" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]' | tr -cd '[:alnum:]-')
             # Validate against known categories
@@ -743,7 +803,7 @@ process_file() {
 
     # Get AI response using preference order
     local new_name=""
-    if ! new_name=$(get_ai_response "$prompt") || [[ -z "$new_name" ]]; then
+    if ! new_name=$(get_ai_response "$prompt" "name") || [[ -z "$new_name" ]]; then
         echo "Error: Could not generate filename (no AI service available)" >&2
         return 1
     fi
