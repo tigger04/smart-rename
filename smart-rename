@@ -327,12 +327,14 @@ try_ollama() {
 
     ensure_custom_model
 
-    # Check if model is available, pull if not
-    if ! ollama list 2>/dev/null | grep -q "^${OLLAMA_MODEL}"; then
-        echo "Pulling Ollama model '$OLLAMA_MODEL' (first run only)..." >&2
-        if ! ollama pull "$OLLAMA_MODEL" >&2; then
-            echo "Failed to pull Ollama model '$OLLAMA_MODEL'" >&2
-            return 1
+    # Check if model is available, pull if not (skip for custom model — it's created, not pulled)
+    if [[ "$OLLAMA_MODEL" != "smart-rename" ]]; then
+        if ! ollama list 2>/dev/null | grep -q "^${OLLAMA_MODEL}"; then
+            echo "Pulling Ollama model '$OLLAMA_MODEL' (first run only)..." >&2
+            if ! ollama pull "$OLLAMA_MODEL" >&2; then
+                echo "Failed to pull Ollama model '$OLLAMA_MODEL'" >&2
+                return 1
+            fi
         fi
     fi
 
