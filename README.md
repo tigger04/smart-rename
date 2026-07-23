@@ -339,6 +339,6 @@ The release process automatically:
 
 ## License
 
-MIT License - Copyright Tadg Paul - See LICENSE file for details
+MIT License - Copyright Tadhg O'Brien - See LICENSE file for details
 3 -ize corrections
 5 symbol replacements
